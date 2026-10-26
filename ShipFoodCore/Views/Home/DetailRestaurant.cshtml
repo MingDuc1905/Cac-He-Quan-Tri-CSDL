@@ -1,0 +1,1225 @@
+﻿@{
+    ViewBag.Title = "DetailRestaurant";
+    Layout = "~/Views/Shared/_LayoutPageHome.cshtml";
+}
+
+@section styles {
+    <link href="~/Source/Home/css/test_details.css" rel="stylesheet" />
+    <link href="~/Source/Home/css/details.css" rel="stylesheet" />
+    <link rel="stylesheet" href="~/Source/Home/css/base.css" />
+    <style>
+        .app { max-width: 1200px; margin: 100px auto 0; padding: 0 16px; }
+        .menu-restaurant-detail { width: 78%; }
+        .item-restaurant-row { height: auto !important; margin-bottom: 20px; }
+        .item-restaurant-more .row { flex-wrap: nowrap; align-items: center; }
+        @@media (max-width: 768px) {
+            .menu-restaurant-detail { width: 100%; }
+            .now-menu-restaurant { width: 100% !important; }
+            .item-restaurant-more .row { flex-direction: column; align-items: flex-start; }
+            .app { margin-top: 80px; }
+            .now-detail-restaurant .detail-restaurant-img { width: 100%; height: auto; float: none; }
+            .now-detail-restaurant .detail-restaurant-info { width: 100%; float: none; padding: 16px 0; }
+            .now-detail-restaurant .name-restaurant { font-size: 18px; white-space: normal; }
+            .now-menu-restaurant .menu-restaurant-category { position: relative; width: 100%; margin-bottom: 12px; }
+            .menu-restaurant-category .scrollbar-container { max-height: none; overflow-x: auto; display: flex; flex-wrap: nowrap; gap: 6px; padding: 4px 0; }
+            .menu-restaurant-category .list-category .item { display: inline-block; white-space: nowrap; margin: 0; }
+            .menu-restaurant-detail { width: 100%; padding: 6px 10px; }
+            .item-restaurant-row .row { flex-direction: column; }
+            .item-restaurant-row .item-restaurant-img { margin-bottom: 8px; }
+            .item-restaurant-row .item-restaurant-info { width: 100%; }
+            .item-restaurant-row .item-restaurant-name { font-size: 14px; }
+            .item-restaurant-row .item-restaurant-desc { font-size: 12px; }
+            .item-restaurant-more .row { flex-direction: row; align-items: center; justify-content: space-between; width: 100%; }
+            .adding-food-cart form { display: flex; align-items: center; gap: 6px; }
+            .adding-food-cart input[type="number"] { width: 50px; }
+            .menu-restaurant-list .search-items .input-group input { font-size: 13px; }
+            .now-detail-restaurant .utility-restaurant .utility-item { width: 100%; float: none; margin-bottom: 10px; }
+            .now-detail-restaurant .utility-restaurant .utility-item:after { display: none; }
+            #reviews-section { padding: 16px !important; }
+            #review-list { grid-template-columns: 1fr !important; }
+            .now-detail-restaurant .rating .number-rating { font-size: 12px; }
+        }
+        @@media (max-width: 576px) {
+            .app { margin-top: 70px; padding: 0 8px; }
+            .now-detail-restaurant .detail-restaurant-img img { width: 100%; height: auto; max-height: 200px; object-fit: cover; }
+            .now-detail-restaurant .name-restaurant { font-size: 16px; line-height: 1.3; }
+            .now-detail-restaurant .address-restaurant { font-size: 12px; }
+            .item-restaurant-row .current-price { font-size: 14px; }
+            .item-restaurant-row .item-restaurant-total { font-size: 10px; }
+            .adding-food-cart .btn { padding: 6px 12px; font-size: 12px; }
+            .menu-restaurant-list .title-menu strong { font-size: 14px; }
+        }
+
+        /* ============================================================
+           STICKY CATEGORY BAR (Mobile) — sticks below header when scrolling
+           ============================================================ */
+        @@media (max-width: 768px) {
+            .menu-restaurant-category.is-sticky {
+                position: -webkit-sticky;
+                position: sticky;
+                top: 68px; /* below header height */
+                z-index: 50;
+                background: var(--fs-white);
+                border-bottom: 1px solid var(--fs-border);
+                box-shadow: 0 2px 8px rgba(0,0,0,.05);
+                margin: 0 -16px;
+                padding: 0 16px;
+                transition: box-shadow .2s ease;
+            }
+            .menu-restaurant-category.is-sticky.scrolled {
+                box-shadow: 0 4px 16px rgba(0,0,0,.1);
+            }
+        }
+        @@media (max-width: 576px) {
+            .menu-restaurant-category.is-sticky { top: 60px; }
+        }
+
+        /* ============================================================
+           FLOATING ACTION BUTTON (Mobile) — opens category Bottom Sheet
+           ============================================================ */
+        .fs-category-fab {
+            position: fixed;
+            bottom: 24px;
+            right: 16px;
+            z-index: 999;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--fs-green), var(--fs-green-dark));
+            color: var(--fs-white);
+            border: none;
+            box-shadow: 0 4px 16px rgba(60,184,21,.35);
+            cursor: pointer;
+            display: none; /* hidden on desktop */
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            transition: transform .2s ease, box-shadow .2s ease;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .fs-category-fab:active {
+            transform: scale(.92);
+        }
+        .fs-category-fab .fab-badge {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            background: var(--fs-danger);
+            color: var(--fs-white);
+            font-size: 11px;
+            font-weight: 700;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 6px rgba(231,76,60,.4);
+        }
+        @@media (max-width: 768px) {
+            .fs-category-fab { display: flex; }
+        }
+        @@media (max-width: 576px) {
+            .fs-category-fab {
+                width: 48px;
+                height: 48px;
+                font-size: 18px;
+                bottom: 16px;
+                right: 12px;
+            }
+        }
+
+        /* ============================================================
+           BOTTOM SHEET — category list overlay
+           ============================================================ */
+        .fs-bottom-sheet-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 9998;
+            background: rgba(0,0,0,.45);
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity .3s ease, visibility .3s ease;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .fs-bottom-sheet-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .fs-bottom-sheet {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 9999;
+            max-height: 60vh;
+            background: var(--fs-white);
+            border-radius: 20px 20px 0 0;
+            box-shadow: 0 -8px 40px rgba(0,0,0,.15);
+            transform: translateY(100%);
+            transition: transform .35s cubic-bezier(.32,.72,0,1);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .fs-bottom-sheet.active {
+            transform: translateY(0);
+        }
+
+        /* Smooth scroll cho #reviews-section */
+        html {
+            scroll-behavior: smooth;
+        }
+        @@media (prefers-reduced-motion: reduce) {
+            html {
+                scroll-behavior: auto;
+            }
+        }
+
+        /* Drag Handle */
+        .fs-bs-handle {
+            flex-shrink: 0;
+            display: flex;
+            justify-content: center;
+            padding: 10px 0 6px;
+        }
+        .fs-bs-handle::after {
+            content: '';
+            width: 32px;
+            height: 4px;
+            background: var(--fs-border);
+            border-radius: 4px;
+        }
+
+        /* Header */
+        .fs-bs-header {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px 12px;
+            border-bottom: 1px solid var(--fs-border-soft);
+        }
+        .fs-bs-header h3 {
+            font-size: 17px;
+            font-weight: 700;
+            color: var(--fs-dark);
+            margin: 0;
+        }
+        .fs-bs-close {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: none;
+            background: var(--fs-light);
+            color: var(--fs-muted);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            transition: background .2s;
+        }
+        .fs-bs-close:active { background: var(--fs-border); }
+
+        /* List */
+        .fs-bs-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px 12px 24px;
+            -webkit-overflow-scrolling: touch;
+        }
+        .fs-bs-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 14px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: background .15s;
+            -webkit-tap-highlight-color: transparent;
+            text-decoration: none;
+            color: inherit;
+        }
+        .fs-bs-item:active { background: #f0fff0; }
+        .fs-bs-item.active {
+            background: #f0fff0;
+            border: 1.5px solid #3CB815;
+        }
+        .fs-bs-item .bs-item-icon { font-size: 20px; flex-shrink: 0; }
+        .fs-bs-item .bs-item-name { flex: 1; font-weight: 600; font-size: 14px; }
+        .fs-bs-item .bs-item-count {
+            background: var(--fs-light);
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            color: var(--fs-muted);
+            font-weight: 500;
+        }
+        .fs-bs-item.active .bs-item-count {
+            background: #3CB815;
+            color: var(--fs-white);
+        }
+        /* ============================================================
+           UTILITY CLASSES — replace 99 inline styles with design system
+           ============================================================ */
+        /* ── Item Card ── */
+        .fs-item-name { font-size:15px;font-weight:700;color:var(--fs-dark); }
+        .fs-item-desc { font-size:13px;color:var(--fs-muted);margin:2px 0 4px;line-height:1.4;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical; }
+        .fs-item-total { font-size:11px;color:var(--fs-muted-soft); }
+        .fs-item-total i { color:var(--fs-green); }
+        .fs-badge-da-mua { font-size:10px;background:var(--fs-danger);color:var(--fs-white);padding:1px 7px;border-radius:4px;font-weight:600;white-space:nowrap; }
+
+        /* ── Price ── */
+        .fs-price-current { font-size:17px;font-weight:700; }
+        .fs-price-old { text-decoration:line-through;color:var(--fs-muted-soft);font-size:12px; }
+        .fs-price-sup { font-size:11px;top:-0.4em; }
+
+        /* ── Add-to-cart ── */
+        .fs-qty-input { width:48px;height:32px;padding:2px 4px;border:1.5px solid var(--fs-border);border-radius:8px;font-size:13px;font-weight:600;text-align:center; }
+        .fs-btn-cart { height:32px;padding:4px 16px;font-size:13px;font-weight:600;border-radius:8px;white-space:nowrap; }
+
+        /* ── Badges ── */
+        .fs-badge-corner { position:absolute;top:-2px;left:-2px;padding:3px 8px;font-size:10px;font-weight:700;border-radius:10px 0 10px 0;box-shadow:0 2px 6px rgba(231,76,60,.4);display:flex;align-items:center;gap:3px;color:var(--fs-white); }
+        .fs-badge-chayhang { background:#e74c3c; }
+        .fs-badge-discount { background:var(--fs-danger); }
+        .fs-badge-fire { font-size:9px; }
+
+        /* ── Recommendations ── */
+        .fs-recommend-item { display:flex;align-items:center;padding:10px 0;border-bottom:1px solid var(--fs-border-soft); }
+        .fs-recommend-img { width:50px;height:50px;margin-right:12px; }
+        .fs-recommend-img img { width:50px;height:50px;border-radius:8px;object-fit:cover; }
+        .fs-recommend-info { flex:1; }
+        .fs-recommend-price { color:var(--fs-danger);font-weight:600; }
+
+        /* ── Trending ── */
+        .fs-trending-item { min-width:160px;border:1px solid var(--fs-border);border-radius:10px;padding:12px;text-align:center; }
+        .fs-trending-img { width:80px;height:80px;border-radius:8px;object-fit:cover; }
+        .fs-trending-name { margin-top:8px; }
+        .fs-trending-name strong { font-size:14px; }
+
+        /* ── Search Bar ── */
+        .fs-search-bar { display:flex;align-items:center;gap:0;border:1.5px solid var(--fs-border);border-radius:10px;overflow:hidden;background:#fff; }
+        .fs-search-icon { padding:0 0 0 12px;display:flex;align-items:center;color:var(--fs-muted-soft);font-size:13px; }
+        .fs-search-input { flex:1;border:none;padding:9px 10px;font-size:14px;outline:none;background:transparent; }
+        .fs-search-btn { padding:9px 20px;background:var(--fs-green);color:#fff;border:none;font-size:13px;font-weight:600;cursor:pointer;transition:background .15s; }
+        .fs-search-btn:hover { background:var(--fs-green-dark); }
+        .fs-mb-16 { margin-bottom:16px; }
+
+        /* ── Reviews Section ── */
+        .fs-reviews-wrap { background:#fff;border-radius:16px;padding:32px;box-shadow:0 2px 16px rgba(0,0,0,.07); }
+        .fs-review-header { display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;margin-bottom:24px; }
+        .fs-review-stats { display:flex;align-items:center;gap:20px; }
+        .fs-avg-score { font-size:40px;font-weight:800;color:var(--fs-warning);line-height:1; }
+        .fs-review-loadmore { text-align:center;margin-top:20px; }
+
+        /* ── Review Form ── */
+        .fs-review-form-wrap { margin-top:28px;border-top:2px solid var(--fs-border-soft);padding-top:24px; }
+        .fs-review-form-box { background:var(--fs-light);border-radius:12px;padding:20px; }
+
+        /* ── Toast ── */
+        .fs-toast { position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:10px 20px;border-radius:8px;z-index:99999;font-size:14px;box-shadow:0 4px 12px rgba(0,0,0,0.2); }
+
+        /* ── Button Submit Review ── */
+        .fs-btn-submit-review { padding:10px 28px;background:linear-gradient(135deg,#3CB815,#27a001);color:var(--fs-white);border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:14px; }
+        .fs-btn-submit-review:hover { background:linear-gradient(135deg,#27a001,#1e8a01); }
+
+        /* ── Avatar Circle ── */
+        .fs-avatar-circle { width:44px;height:44px;border-radius:50%;color:var(--fs-white);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px;flex-shrink:0; }
+
+        /* ── Login Prompt ── */
+        .fs-login-prompt { text-align:center;padding:20px;background:var(--fs-light);border-radius:12px; }
+        .fs-empty-state-text { font-size:16px;font-weight:600; }
+
+        /* ── Common inline-style replacements ── */
+        .fs-flex-center { display:flex;align-items:center; }
+        .fs-flex-gap-6 { display:flex;align-items:center;gap:6px; }
+        .fs-flex-gap-8 { display:flex;align-items:center;gap:8px; }
+        .fs-flex-wrap { display:flex;align-items:center;gap:6px;flex-wrap:wrap; }
+        .fs-text-center { text-align:center; }
+        .fs-text-right { text-align:right; }
+        .fs-mt-20 { margin-top:20px; }
+        .fs-mt-28 { margin-top:28px; }
+        .fs-mb-12 { margin-bottom:12px; }
+        .fs-mb-16 { margin-bottom:16px; }
+        .fs-p-20 { padding:20px; }
+        .fs-p-40 { padding:40px; }
+        .fs-img-72 { width:72px;height:72px;border-radius:10px;object-fit:cover;display:block; }
+        .fs-border-bottom { border-bottom:2px solid var(--fs-border-soft); }
+        .fs-food-label { font-weight:600;font-size:14px; }
+
+        /* ── Section spacing ── */
+        .fs-section-gap { margin-top:30px; }
+        .fs-section-gap-sm { margin-top:20px; }
+    </style>
+}
+
+@{
+    // ════════════════════════════════════════
+    // 🏷️ LẤY DỮ LIỆU GIẢM GIÁ TỪ CONTROLLER
+    // ════════════════════════════════════════
+    var khuyenMais = (ViewBag.KhuyenMais as List<ShipFood.Models.tbMonAnKhuyenMai>) ?? new List<ShipFood.Models.tbMonAnKhuyenMai>();
+    // ⬆ ViewBag.KhuyenMais = List<tbMonAnKhuyenMai> từ Controller
+    //    Mỗi item: km.phantramgiam (%), km.tbBienTheMonAn.mamon (FK→món)
+    var muaKem = ViewBag.MuaKem as List<ShipFood.Models.tbMonAn>;          // Apriori: món mua kèm
+    var trendingNow = ViewBag.TrendingNow as List<ShipFood.Models.tbMonAn>; // Gợi ý theo giờ
+}
+
+<div class="app">
+    <div class="wrapper">
+        <div class="now-detail-restaurant clearfix">
+            <div class="container">
+                <div class="detail-restaurant-img">
+                    <img src="@TinhToan.HinhAnhUrl(Model.hinhanh)" alt="Không tìm thấy ảnh" class="" loading="lazy" onerror="this.src='/Source/Home/img/pizza.jpg'" />
+                </div>
+                <div class="detail-restaurant-info">
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb">
+                            <li class="breadcrumb-item"><a class="breadcrumb-link" href="/">Trang chủ</a></li>
+                            <li class="breadcrumb-item"><a class="breadcrumb-link" href="/Home">TP. Hồ Chí Minh</a></li>
+                            <li class="breadcrumb-item active" aria-current="page">@Model.tenquanan</li>
+                        </ol>
+                    </nav>
+                    <div class="kind-restaurant">
+                        <div class="tag-preferred" data-bs-toggle="modal" data-bs-target="#modal-preferred-merchant">
+                            <i class="fa-solid fa-thumbs-up" aria-hidden="true"></i>Yêu thích
+                        </div>
+                        <span>Quán ăn<span>-<a class="link-brand" title="Cơm Thố Thiên Phúc" rel="nofollow" href="/thuong-hieu/com-tho-thien-phuc">Chi nhánh</a></span></span>
+                    </div>
+                    <h1 class="name-restaurant">@Model.tenquanan</h1>
+                    <div class="address-restaurant">@Model.diachi</div>
+                    <div class="rating">
+                        <div class="stars">
+                            @for (int i = 0; i < (int)(Model.diemdanhgia ?? 0); ++i)
+                            {
+                                <span class="full"><i class="fas fa-star"></i></span>
+                            }
+                        </div>
+                        <span class="number-rating">@Model.soluotdanhgia</span>đánh giá trên Fastship
+                    </div>
+                    <div class="view-more-rating">
+                        <a href="#reviews-section" rel="noopener noreferrer" class="number-review">Xem thêm lượt đánh giá từ Fastship <i class="fa fa-arrow-down"></i></a>
+                    </div>
+                    <div class="status-restaurant">
+                        <div class="opentime-status"><span class="stt online" title="@Model.trangthai"></span></div>
+                        <div class="time"><i class="far fa-clock"></i>07:30 - 21:30</div>
+                    </div>
+                    <div class="cost-restaurant"><i class="fas fa-dollar-sign"></i>35.000 - 75.000</div>
+                    <div class="share-social clearfix">
+                        <div class="share-social-box">
+                            <div class="fb-like" data-layout="button" data-action="like" data-size="small" data-show-faces="false" data-share="true" data-colorscheme="light" data-kid-directed-site="false"></div>
+                        </div>
+                    </div>
+                    <div class="utility-restaurant clearfix">
+                        <div class="utility-item">
+                            <div class="utility-title">Phí dịch vụ</div>
+                            <div class="utility-content"><span class="txt-bold txt-red"> 0.0% Phí phục vụ </span></div>
+                            <span class="icon icon-partner-vi" data-bs-toggle="modal" data-bs-target="#modal-verify-merchant"></span>
+                        </div>
+                        <div class="utility-item">
+                            <div class="utility-title">Dịch vụ bởi</div>
+                            <div class="utility-content"><span class="txt-bold txt-red">Fastship</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="container relative clearfix">
+                <div class="now-menu-restaurant" style="width:90%">
+                    <div class="menu-restaurant-tab"><div class="item active">Thực đơn</div></div>
+                    <div class="menu-restaurant-content-tab">
+                        <div class="menu-restaurant-container">
+                            <div class="menu-restaurant-category">
+                                <div class="list-category" id="scroll-spy">
+                                    <div class="scrollbar-container ps">
+                                        <a href="@Url.Action("DetailRestaurant", new { id = ViewBag.maquan })">
+                                            <div class="item">
+                                                <span title="Tất cả" class="item-link @(ViewBag.idDM == null ? "active" : "")">Tất cả</span>
+                                            </div>
+                                        </a>
+                                        @foreach (var thucdon in ViewBag.ThucDon)
+                                        {
+                                            var searchKey = !string.IsNullOrEmpty(ViewBag.searchKey as string) ? ViewBag.searchKey : null;
+                                            var href = Url.Action("DetailRestaurant", "Home", new { id = ViewBag.maquan, idDM = thucdon.madanhmuc, searchKey = searchKey });
+                                            <a href="@href">
+                                                <div class="item">
+                                                    <span id="cat-@thucdon.madanhmuc" title="@thucdon.tendanhmuc" class="item-link @(ViewBag.idDM == thucdon.madanhmuc ? "active" : "")">@thucdon.tendanhmuc</span>
+                                                </div>
+                                            </a>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="menu-restaurant-detail" style="width:78%">
+                                <div class="menu-restaurant-list">
+                                    <div class="search-items">
+                                        <form action="~/Home/DetailRestaurant" class="fs-mb-16">
+                                            <input type="hidden" name="id" value="@ViewBag.maquan"/>
+                                            <div class="fs-search-bar">
+                                                <span class="fs-search-icon">
+                                                    <i class="fas fa-search"></i>
+                                                </span>
+                                                <input type="text" name="searchKey" placeholder="Tìm món..." value="@ViewBag.searchKey" class="fs-search-input" />
+                                                <button type="submit" class="fs-search-btn">Tìm</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                    <div class="menu-group" style="padding-bottom:8px;">
+                                        <div class="title-menu fs-flex-center" style="justify-content:space-between;">
+                                            <strong>Danh sách món</strong>
+                                            @{
+                                                var daMuaMonAnIds = ViewBag.DaMuaMonAnIds as HashSet<int>;
+                                                var userJson = Context.Session.GetString("user");
+                                                var isLoggedIn = !string.IsNullOrEmpty(userJson);
+                                            }
+                                            @if (isLoggedIn && daMuaMonAnIds != null && daMuaMonAnIds.Any())
+                                            {                                                    <label style="font-size:13px;cursor:pointer;user-select:none;">
+                                                        <input type="checkbox" id="filter-da-mua" onchange="toggleDaMuaFilter()" />
+                                                        <span class="fs-text-danger">❤ Đã mua</span>
+                                                </label>
+                                            }
+                                        </div>
+                                    </div>
+                                    @foreach (ShipFood.Models.tbMonAn item in ViewBag.DanhSachMonAn)
+                                    {
+                                        // ponytail: cast item về tbMonAn để DLR không bị RuntimeBinderException với extension methods LINQ
+
+                                        // ═══════════════════════════════════════════════════
+                                        // 💰 TÍNH GIÁ SAU GIẢM: cho TỪNG món ăn trong danh sách
+                                        // ═══════════════════════════════════════════════════
+                                        // B1: Tìm KM của món này (so khớp km.tbBienTheMonAn.mamon == item.mamon)
+                                        var khuyenMai = khuyenMais?.FirstOrDefault(km => km.tbBienTheMonAn?.mamon == item.mamon);
+                                        // B2: Giá gốc = giatien của biến thể size đầu tiên (VD: 50.000đ từ tbBienTheMonAn)
+                                        var giaGoc = item.tbBienTheMonAns?.FirstOrDefault()?.giatien;
+                                        // B3: Mặc định giá mới = giá gốc (nếu ko có KM)
+                                        var giaKhuyenMai = giaGoc;
+                                        // B4: Nếu CÓ KM hợp lệ → tính giá mới
+                                        if (khuyenMai != null && khuyenMai.phantramgiam > 0)
+                                        {
+                                            // ⭐ CÔNG THỨC: Giá mới = Giá gốc - (Giá gốc × % giảm / 100)
+                                            // VD: 50.000 - (50.000 × 20 / 100) = 40.000đ
+                                            giaKhuyenMai = giaGoc - (giaGoc * khuyenMai.phantramgiam / 100);
+                                        }
+                                        var daMua = daMuaMonAnIds != null && daMuaMonAnIds.Contains(item.mamon);
+                                        var allVariants = item.tbBienTheMonAns?.ToList() ?? new List<ShipFood.Models.tbBienTheMonAn>();
+                                        var firstVariantId = allVariants.Count > 0 ? allVariants[0].id : (int?)item.mamon;
+                                        // ponytail: item row keys for consistent flex layout
+                                        var rowItemId = "item-" + item.mamon;
+                                        <div class="item-restaurant-row @(daMua ? "item-da-mua" : "")" id="@rowItemId">
+                                            <div class="row" style="flex-wrap:nowrap;align-items:flex-start;">
+                                                <!-- Column 1: Image + badge -->
+                                                <div class="col-auto item-restaurant-img" style="position:relative;flex-shrink:0;">
+                                                    <button class="inline" style="padding:0;border:none;background:none;@(!item.conhang ? "filter:grayscale(1);opacity:.7;" : "")">
+                                                        <img src="@TinhToan.HinhAnhUrl(item.hinhanh)" alt="@item.tenmon" class="fs-img-72"
+                                                             loading="lazy" onerror="this.src='/Source/Home/img/pizza.jpg'" />
+                                                    </button>
+                                                    @if (!item.conhang)
+                                                    {
+                                                        <span class="fs-badge-corner fs-badge-chayhang">🔥 Cháy hàng</span>
+                                                    }
+                                                    else if (khuyenMai != null)
+                                                    {
+                                                        // ⭐ BADGE GIẢM GIÁ: hiển thị % giảm ở góc trái ảnh
+                                                        <span class="fs-badge-corner fs-badge-discount">
+                                                            <i class="fa fa-fire fs-badge-fire"></i>-@khuyenMai.phantramgiam%  @* "-20%" *@
+                                                        </span>
+                                                    }
+                                                </div>
+                                                <!-- Column 2: Info (flex-shrink) -->
+                                                <div class="col item-restaurant-info" style="flex:1;padding-left:14px;">
+                                                    <h2 class="item-restaurant-name fs-flex-wrap">
+                                                        <span class="fs-item-name">@item.tenmon</span>
+                                                        @if (daMua)
+                                                        {
+                                                            <span class="fs-badge-da-mua">Đã mua</span>
+                                                        }
+                                                    </h2>
+                                                    <div class="fs-item-desc">@item.mota</div>
+                                                    <div class="fs-item-total">Đã được đặt <strong>100+</strong> lần&nbsp;|&nbsp;<i class="fa fa-thumbs-up"></i>&nbsp;3</div>
+                                                </div>
+                                                <!-- Column 3: Price + Size + Add-to-cart (right-aligned block) -->
+                                                <div class="col-auto item-restaurant-more" style="flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:8px;min-width:140px;">
+                                                    <!-- ════════════════════════════════════════ -->
+                                                    <!-- 💲 HIỂN THỊ GIÁ: Giá cũ + Giá mới sau giảm -->
+                                                    <!-- ════════════════════════════════════════ -->
+                                                    <div class="product-price fs-text-right" style="line-height:1.1;">
+                                                        @if (khuyenMai != null && khuyenMai.phantramgiam > 0)
+                                                        {
+                                                            // Giá CŨ (gạch ngang): 50.000đ
+                                                            <div class="fs-price-old">@giaGoc?.ToString("N0")<sup class="fs-price-sup">đ</sup></div>
+                                                        }
+                                                        <!-- 💲 Giá MỚI (màu đỏ nếu có KM, đen nếu không): 40.000đ -->
+                                                        <div class="current-price current-price-@item.mamon fs-price-current" style="color:@(khuyenMai != null ? "var(--fs-danger)" : "var(--fs-dark)");">
+                                                            @(khuyenMai != null ? giaKhuyenMai?.ToString("N0") : item.tbBienTheMonAns?.FirstOrDefault()?.giatien?.ToString("N0"))<sup class="fs-price-sup">đ</sup>
+                                                        </div>
+                                                    </div>
+                                                    <!-- Size chips (multi-variant) -->
+                                                    @if (item.tbBienTheMonAns != null && item.tbBienTheMonAns.Count > 1)
+                                                    {
+                                                        <div class="fs-size-selector" data-mamon="@item.mamon" style="display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end;">
+                                                            @for (int vi = 0; vi < allVariants.Count; vi++)
+                                                            {
+                                                                var variant = allVariants[vi];
+                                                                var isFirst = vi == 0;
+                                                                <button type="button"
+                                                                        class="fs-size-chip@(isFirst ? " active" : "")"
+                                                                        data-bientheid="@variant.id"
+                                                                        data-mamon="@item.mamon"
+                                                                        data-giatien="@variant.giatien"
+                                                                        data-size="@variant.size"
+                                                                        onclick="selectSize(this)"
+                                                                        style="padding:5px 12px;border-radius:16px;border:1.5px solid @(isFirst ? "#3CB815" : "var(--fs-border)");background:@(isFirst ? "#3CB815" : "#fff");color:@(isFirst ? "#fff" : "#555");font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap;">
+                                                                    @(variant.size ?? "M") @variant.giatien?.ToString("N0")<sup style="font-size:9px;top:-0.2em;">đ</sup>
+                                                                </button>
+                                                            }
+                                                        </div>
+                                                    }
+                                                    <!-- Quantity + Add to cart -->
+                                                    <div class="adding-food-cart fs-flex-gap-6" style="flex-shrink:0;">
+                                                        <form action="~/Cart/ThemMonAn" method="get" onsubmit="return validateCartForm(this)" class="fs-flex-gap-6" style="margin:0;">
+                                                            <input name="soLuong" type="number" value="1" min="1" class="fs-qty-input" />
+                                                            <input name="maMonAn" type="hidden" value="@firstVariantId" class="maMonAnInput-@item.mamon" />
+                                                            <button type="submit" class="btn @(item.conhang ? "btn-success" : "btn-secondary") add-to-cart-btn fs-btn-cart"
+                                                                    data-mamon="@item.mamon"
+                                                                    data-soluong="1"
+                                                                    onclick="return @(item.conhang ? "optimisticAddToCart(this, event)" : "false")"
+                                                                    @(!item.conhang ? "disabled" : "")>@(item.conhang ? "Thêm" : "Hết hàng")</button>
+                                                        </form>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    }
+
+                                    <!-- Recommendation: Thường được mua kèm -->
+                                    @if (muaKem != null && muaKem.Any())
+                                    {
+                                        <div class="menu-group fs-section-gap">
+                                            <div class="title-menu"><strong><i class="fas fa-shopping-cart fs-text-green"></i> Thường được mua kèm</strong></div>
+                                            @foreach (var item in muaKem)
+                                            {
+                                                <div class="fs-recommend-item">
+                                                    <div class="fs-recommend-img">
+                                                        <img src="@TinhToan.HinhAnhUrl(item.hinhanh)" alt="@item.tenmon" loading="lazy" onerror="this.src='/Source/Home/img/pizza.jpg'" />
+                                                    </div>
+                                                    <div class="fs-recommend-info">
+                                                        <strong>@item.tenmon</strong>
+                                                        <div class="fs-recommend-price">@item.tbBienTheMonAns?.FirstOrDefault()?.giatien?.ToString("N0")đ</div>
+                                                    </div>
+                                                    <div>
+                                                        <a href="@Url.Action("DetailRestaurant", new { id = item.maquanan })" class="btn btn-sm btn-outline-success">Xem</a>
+                                                    </div>
+                                                </div>
+                                            }
+                                        </div>
+                                    }
+
+                                    <!-- Recommendation: Gợi ý theo khung giờ -->
+                                    @if (trendingNow != null && trendingNow.Any())
+                                    {
+                                        <div class="menu-group fs-section-gap-sm">
+                                            <div class="title-menu"><strong><i class="fas fa-clock fs-text-orange"></i> Gợi ý cho khung giờ này</strong></div>
+                                            <div style="display:flex;gap:12px;overflow-x:auto;padding:10px 0;">
+                                                @foreach (var item in trendingNow)
+                                                {
+                                                    <div class="fs-trending-item">
+                                                        <img src="@TinhToan.HinhAnhUrl(item.hinhanh)" alt="@item.tenmon" class="fs-trending-img" loading="lazy" onerror="this.src='/Source/Home/img/pizza.jpg'" />
+                                                        <div class="fs-trending-name"><strong>@item.tenmon</strong></div>
+                                                        <div class="fs-recommend-price">@item.tbBienTheMonAns?.FirstOrDefault()?.giatien?.ToString("N0")đ</div>
+                                                        <a href="@Url.Action("DetailRestaurant", new { id = item.maquanan })" class="btn btn-sm btn-success mt-2">Đặt ngay</a>
+                                                    </div>
+                                                }
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========== FAB + BOTTOM SHEET (MOBILE ONLY) ========== -->
+        <!-- Floating Action Button -->
+        <button class="fs-category-fab" id="categoryFab" aria-label="Danh mục món ăn" onclick="openCategorySheet()">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+            <span class="fab-badge" id="categoryFabBadge">0</span>
+        </button>
+
+        <!-- Bottom Sheet Overlay -->
+        <div class="fs-bottom-sheet-overlay" id="categorySheetOverlay" onclick="closeCategorySheet()"></div>
+
+        <!-- Bottom Sheet -->
+        <div class="fs-bottom-sheet" id="categorySheet">
+            <div class="fs-bs-handle"></div>
+            <div class="fs-bs-header">
+                <h3><i class="fas fa-list" style="color:var(--fs-green);"></i> Danh mục món ăn</h3>
+                <button class="fs-bs-close" onclick="closeCategorySheet()" aria-label="Đóng">✕</button>
+            </div>
+            <div class="fs-bs-list" id="categorySheetList">
+                <!-- Populated by JavaScript -->
+            </div>
+        </div>        <!-- ========== CUSTOMER REVIEWS SECTION ========== -->
+        <div class="container" style="margin:40px 0 60px;">
+            <div id="reviews-section" class="fs-reviews-wrap">
+
+                <!-- Header + Stats -->
+                <div class="fs-review-header">
+                    <div>
+                        <h3 style="font-weight:700;margin:0;color:var(--fs-dark);">⭐ Đánh giá từ khách hàng</h3>
+                        <p class="text-muted" style="font-size:14px;margin:4px 0 0;">Nhận xét thực tế từ những người đã đặt hàng</p>
+                    </div>
+                    <div id="review-stats" class="fs-review-stats">
+                        <div class="fs-text-center">
+                            <div id="avg-score" class="fs-avg-score">—</div>
+                            <div id="star-display" style="color:var(--fs-warning);font-size:18px;letter-spacing:2px;">☆☆☆☆☆</div>
+                            <div id="total-reviews" style="font-size:12px;color:var(--fs-muted);">Đang tải...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Review cards -->
+                <div id="review-list" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;">
+                    <div class="fs-text-center fs-p-40" style="color:var(--fs-muted-soft);grid-column:1/-1;">
+                        <div style="font-size:32px;margin-bottom:8px;">⏳</div>
+                        Đang tải đánh giá...
+                    </div>
+                </div>
+
+                <!-- Load more -->
+                <div id="load-more-wrap" class="fs-review-loadmore" style="display:none;">
+                    <button id="btn-load-more" onclick="loadMoreReviews()" class="fs-load-more-btn">
+                        Xem thêm đánh giá
+                    </button>
+                </div>
+
+                @Html.AntiForgeryToken()
+
+                <!-- Viết đánh giá (chỉ hiện khi đã mua và đăng nhập) -->
+                @{
+                    var userJsonReview = Context.Session.GetString("user");
+                    var isLoggedInReview = !string.IsNullOrEmpty(userJsonReview);
+                    var daMuaForReview = ViewBag.DaMuaMonAnIds as HashSet<int>;
+                    bool canReview = isLoggedInReview && daMuaForReview != null && daMuaForReview.Any();
+                }
+                @if (canReview)
+                {
+                    <div class="fs-review-form-wrap">
+                        <h4 style="font-weight:700;margin-bottom:16px;color:var(--fs-dark);">✍️ Viết đánh giá của bạn</h4>
+                        <div class="fs-review-form-box">
+                            <div class="fs-mb-12">
+                                <label class="fs-food-label">Chọn món muốn đánh giá:</label>
+                                <select id="review-mactdh" class="form-select mt-1" style="max-width:400px;">
+                                    <option value="">-- Chọn món đã mua --</option>
+                                </select>
+                            </div>
+                            <div class="fs-mb-12">
+                                <label class="fs-food-label">Điểm đánh giá:</label>
+                                <div id="star-picker" style="display:flex;gap:6px;margin-top:8px;font-size:28px;cursor:pointer;">
+                                    <span class="star-opt" data-val="1">☆</span>
+                                    <span class="star-opt" data-val="2">☆</span>
+                                    <span class="star-opt" data-val="3">☆</span>
+                                    <span class="star-opt" data-val="4">☆</span>
+                                    <span class="star-opt" data-val="5">☆</span>
+                                </div>
+                                <input type="hidden" id="review-diem" value="0">
+                            </div>
+                            <div class="fs-mb-16">
+                                <label class="fs-food-label">Nhận xét (tuỳ chọn):</label>
+                                <textarea id="review-nhanxet" class="form-control mt-1" rows="3" placeholder="Chia sẻ cảm nhận của bạn..." maxlength="500"></textarea>
+                                <div style="font-size:11px;color:var(--fs-muted-soft);text-align:right;margin-top:2px;"><span id="char-count">0</span>/500</div>
+                            </div>
+                            <div id="review-feedback" style="display:none;margin-bottom:12px;font-size:14px;padding:10px 14px;border-radius:8px;"></div>
+                            <button onclick="submitReview()" class="fs-btn-submit-review">
+                                Gửi đánh giá
+                            </button>
+                        </div>
+                    </div>
+                }
+                else if (!isLoggedInReview)
+                {
+                    <div class="fs-login-prompt" style="margin-top:20px;">
+                        <p class="text-muted" style="margin-bottom:12px;">Đăng nhập để viết đánh giá</p>
+                        <a href="@Url.Action("Login","Home")" class="fs-btn fs-btn-primary">Đăng nhập</a>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal alerts -->
+<div class="modal fade modal-alert" id="modal-delivery-alert-MenuAlertModal" tabindex="-1" role="dialog" aria-hidden="true" data-backdrop="static">
+    <div class="modal-dialog modal-noti" role="document">
+        <div class="modal-content">
+            <span class="close" data-bs-dismiss="modal">x</span>
+            <div class="modal-header txt-bold font13"><span class="txt-red">Fastship</span> Thông báo</div>
+            <div class="modal-body"><div class="col col-12"><p class="font15"><span></span></p></div></div>
+            <div class="modal-footer content-right"><button type="button" class="btn btn-red" data-bs-dismiss="modal">Ok</button></div>
+        </div>
+    </div>
+</div>
+<div class="modal fade modal-box-image" id="modal-box-image" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog" role="document"><div class="res-menu-carousel"></div></div>
+</div>
+<div class="modal fade modal-alert" id="modal-delivery-confirm-MenuConfirmModal" tabindex="-1" role="dialog" aria-hidden="true" data-keyboard="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <span class="close" data-bs-dismiss="modal">x</span>
+            <div class="modal-header txt-bold font13"><span class="txt-red">service_by_fastchip</span> Thông báo</div>
+            <div class="modal-body"><p class="font15 max-width-750"></p></div>
+            <div class="modal-footer content-right">
+                <button type="button" class="btn btn-gray" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-red" data-bs-dismiss="modal">Ok</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section scripts {
+    <script>
+        // ponytail: Server-side login state (không dùng document.cookie vì HttpOnly)
+        @{
+            var _userJson = Context.Session.GetString("user");
+            var _isLoggedIn = !string.IsNullOrEmpty(_userJson);
+        }
+        var isLoggedIn = @(_isLoggedIn ? "true" : "false");
+
+        function validateCartForm(form) {
+            var soLuong = parseInt(form.querySelector('input[name="soLuong"]').value);
+            if (isNaN(soLuong) || soLuong <= 0) {
+                alert('Hãy chọn số lượng trước khi thêm');
+                return false;
+            }
+            return true;
+        }
+
+        // ═══ 4c: Optimistic UI — Add to Cart via AJAX (hỗ trợ anonymous) ═══
+        function optimisticAddToCart(btn, event) {
+            event.preventDefault();
+            var $btn = $(btn);
+            if ($btn.prop('disabled') || $btn.data('adding')) return false;
+            
+            var form = $btn.closest('form');
+            var maMonAn = parseInt(form.find('input[name="maMonAn"]').val());
+            var soLuong = parseInt(form.find('input[name="soLuong"]').val()) || 1;
+            
+            // ═══ Anonymous mode: nếu chưa login, lưu vào localStorage ═══
+            // ponytail: Không dùng document.cookie (HttpOnly) — dùng server-side isLoggedIn
+            if (typeof isLoggedIn === 'undefined') { var isLoggedIn = false; }
+            if (!isLoggedIn && typeof FastShipCart !== 'undefined' && FastShipCart.addUnauth) {
+                // Lấy thông tin món từ DOM
+                var itemRow = $btn.closest('.item-restaurant-row');
+                var tenmon = itemRow.find('.item-restaurant-name').text().trim();
+                var giaText = itemRow.find('.current-price').text().trim().replace(/[^0-9]/g, '');
+                var giatien = parseFloat(giaText) || 0;
+                var hinhanh = itemRow.find('img').first().attr('src') || '';
+                var maquanan = @ViewBag.maquan;
+                
+                FastShipCart.addUnauth(maMonAn, soLuong, tenmon, giatien, hinhanh, maquanan);
+                
+                // Feedback
+                var origHtml = $btn.html();
+                $btn.html('<i class="fas fa-check"></i> ✅').removeClass('btn-success').addClass('btn-success');
+                setTimeout(function() {
+                    $btn.html(origHtml);
+                }, 1500);
+                return false;
+            }
+            
+            // Optimistic: đổi text nút ngay
+            var origHtml = $btn.html();
+            $btn.data('adding', true).prop('disabled', true)
+                .html('<i class="fas fa-spinner fa-spin"></i> Đang thêm...')
+                .removeClass('btn-success').addClass('btn-secondary');
+            
+            $.ajax({
+                url: '/Cart/ApiThemMonAn',
+                type: 'GET',
+                data: { maMonAn: maMonAn, soLuong: soLuong },
+                success: function(res) {
+                    if (res.success) {
+                        $btn.html('<i class="fas fa-check"></i> ✅').removeClass('btn-secondary').addClass('btn-success');
+                        showCartToast('✅ Đã thêm vào giỏ hàng');
+                        // Update cart badge
+                        var badge = document.getElementById('navCartBadge');
+                        if (badge && res.cartCount !== undefined) {
+                            badge.textContent = res.cartCount;
+                            badge.style.display = res.cartCount > 0 ? 'flex' : 'none';
+                        }
+                        var badgeMobile = document.getElementById('navCartBadgeMobile');
+                        if (badgeMobile && res.cartCount !== undefined) {
+                            badgeMobile.textContent = res.cartCount;
+                            badgeMobile.style.display = res.cartCount > 0 ? 'flex' : 'none';
+                        }
+                    } else if (res.conflict) {
+                        $btn.html(origHtml).prop('disabled', false).removeClass('btn-secondary').addClass('btn-success');
+                        if (confirm('Giỏ hàng đang có món từ ' + res.currentRestaurant + '. Bạn muốn chuyển sang ' + res.newRestaurant + ' không?')) {
+                            window.location.href = '/Cart/ApiForceSwitchRestaurant?maMonAn=' + maMonAn + '&soLuong=' + soLuong;
+                        }
+                    } else {
+                        $btn.html(origHtml).prop('disabled', false).removeClass('btn-secondary').addClass('btn-success');
+                        showCartToast('❌ ' + (res.message || 'Lỗi'));
+                    }
+                },
+                error: function() {
+                    $btn.html(origHtml).prop('disabled', false).removeClass('btn-secondary').addClass('btn-success');
+                    showCartToast('❌ Lỗi kết nối');
+                },
+                complete: function() {
+                    $btn.data('adding', false);
+                    setTimeout(function() {
+                        $btn.html(origHtml).prop('disabled', false).removeClass('btn-secondary').addClass('btn-success');
+                    }, 1500);
+                }
+            });
+            return false;
+        }
+
+        function showCartToast(msg) {
+            var t = $('<div style="position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:10px 20px;border-radius:8px;z-index:99999;font-size:14px;box-shadow:0 4px 12px rgba(0,0,0,0.2);">' + msg + '</div>');
+            $('body').append(t);
+            setTimeout(function(){ t.fadeOut(400, function(){ t.remove(); }); }, 2500);
+        }
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('input[name="soLuong"]').forEach(function(input) {
+                input.addEventListener('input', function() {
+                    var val = parseInt(this.value);
+                    if (isNaN(val) || val < 1) { this.value = 1; }
+                });
+                input.addEventListener('blur', function() {
+                    var val = parseInt(this.value);
+                    if (isNaN(val) || val < 1) { this.value = 1; }
+                });
+            });
+        });
+
+        function toggleDaMuaFilter() {
+            var checked = document.getElementById('filter-da-mua').checked;
+            var items = document.querySelectorAll('.item-restaurant-row');
+            items.forEach(function(item) {
+                item.style.display = (checked && !item.classList.contains('item-da-mua')) ? 'none' : 'block';
+            });
+        }
+
+        // ═══ Image URL helper: xử lý cả local path và full Unsplash URL ═══
+        function utilsImgUrl(path) {
+            if (!path) return '';
+            return (path.startsWith('http://') || path.startsWith('https://'))
+                ? path
+                : '/Source/Home/img/' + path;
+        }
+
+        // ===== REVIEWS SYSTEM =====
+        var QUAN_ID = @ViewBag.maquan;
+        var URL_GET_REVIEWS = '@Url.Action("GetReviews","Home")';
+        var URL_SUBMIT_REVIEW = '@Url.Action("SubmitReview","Home")';
+        // ponytail: AntiForgeryToken output chứa HTML có dấu " gây SyntaxError cho JS parser
+        // Dùng match an toàn hơn: lấy token từ hidden input field
+        var ANTIFORGERY_TOKEN = (function() {
+            var el = document.querySelector('input[name="__RequestVerificationToken"]');
+            return el ? el.value : '';
+        })();
+        var reviewPage = 1;
+        var reviewPageSize = 6;
+        var reviewTotal = 0;
+
+        function renderStars(score) {
+            var full = Math.floor(score);
+            var half = score - full >= 0.5;
+            var s = '';
+            for (var i = 1; i <= 5; i++) {
+                if (i <= full) s += '★';
+                else if (i === full + 1 && half) s += '½';
+                else s += '☆';
+            }
+            return s;
+        }
+
+        function loadReviews(reset) {
+            if (reset) { reviewPage = 1; $('#review-list').html('<div style="text-align:center;padding:40px;color:var(--fs-muted-soft);grid-column:1/-1;"><div style="font-size:32px;margin-bottom:8px;">⏳</div>Đang tải đánh giá...</div>'); }
+            $.get(URL_GET_REVIEWS, { quanId: QUAN_ID, page: reviewPage, pageSize: reviewPageSize }, function(r) {
+                if (!r.success) return;
+                reviewTotal = r.total;
+
+                // Cập nhật stats
+                if (r.total > 0) {
+                    $('#avg-score').text(r.avgDiem.toFixed(1));
+                    $('#star-display').text(renderStars(r.avgDiem));
+                    $('#total-reviews').text(r.total + ' đánh giá');
+                } else {
+                    $('#avg-score').text('—');
+                    $('#star-display').text('☆☆☆☆☆');
+                    $('#total-reviews').text('Chưa có đánh giá');
+                }
+
+                if (reset) $('#review-list').empty();
+
+                if (r.reviews.length === 0 && reviewPage === 1) {
+                    $('#review-list').html('<div style="text-align:center;padding:40px;color:var(--fs-muted-soft);grid-column:1/-1;"><div style="font-size:48px;margin-bottom:12px;">💬</div><div style="font-size:16px;font-weight:600;">Chưa có đánh giá nào</div><div style="font-size:13px;margin-top:4px;">Hãy là người đầu tiên đánh giá quán này!</div></div>');
+                    $('#load-more-wrap').hide();
+                    return;
+                }
+
+                r.reviews.forEach(function(rv) {
+                    var stars = '';
+                    for (var i = 1; i <= 5; i++) stars += (i <= rv.diem ? '★' : '☆');
+                    var initial = (rv.tenkh || 'K').charAt(0).toUpperCase();
+                    var colors = ['#3CB815','#007bff','#e74c3c','#f39c12','#9b59b6','#17a2b8'];
+                    var bg = colors[rv.madg % colors.length];
+                    var card = $('<div>').css({
+                        background: 'var(--fs-white)', border: '1.5px solid var(--fs-border-soft)', borderRadius: '12px',
+                        padding: '18px', transition: 'box-shadow .2s'
+                    }).hover(function(){ $(this).css('box-shadow','0 4px 20px rgba(0,0,0,.1)'); },
+                              function(){ $(this).css('box-shadow','none'); });
+                    card.html(
+                        '<div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">' +
+                          '<div style="width:44px;height:44px;border-radius:50%;background:' + bg + ';color:var(--fs-white);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px;flex-shrink:0;">' + initial + '</div>' +
+                          '<div style="flex:1;min-width:0;">' +
+                            '<div style="font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + rv.tenkh + '</div>' +
+                            '<div style="font-size:11px;color:var(--fs-muted-soft);">' + rv.ngaydat + '</div>' +
+                          '</div>' +
+                          '<div style="color:var(--fs-warning);font-size:16px;letter-spacing:1px;">' + stars + '</div>' +
+                        '</div>' +
+                        (rv.nhanxet ? '<p style="color:#555;font-size:14px;line-height:1.6;margin:0 0 10px;">"' + $('<div>').text(rv.nhanxet).html() + '"</p>' : '') +
+                        '<div style="display:flex;align-items:center;gap:8px;">' +
+                          '<img src="' + utilsImgUrl(rv.hinhanh) + '" style="width:32px;height:32px;border-radius:6px;object-fit:cover;" onerror="this.src=\'/Source/Home/img/pizza.jpg\'">' +
+                          '<span style="font-size:12px;color:var(--fs-muted);background:var(--fs-light);padding:2px 8px;border-radius:20px;">' + rv.tenmon + '</span>' +
+                        '</div>'
+                    );
+                    $('#review-list').append(card);
+                });
+
+                var shown = (reviewPage - 1) * reviewPageSize + r.reviews.length;
+                if (shown < r.total) {
+                    $('#load-more-wrap').show();
+                } else {
+                    $('#load-more-wrap').hide();
+                }
+            });
+        }
+
+        function loadMoreReviews() {
+            reviewPage++;
+            loadReviews(false);
+        }
+
+        // ===== STAR PICKER =====
+        var selectedDiem = 0;
+        $(document).on('mouseover', '.star-opt', function() {
+            var val = parseInt($(this).data('val'));
+            $('.star-opt').each(function(i) { $(this).text(i < val ? '★' : '☆').css('color', i < val ? 'var(--fs-warning)' : 'var(--fs-muted-soft)'); });
+        }).on('mouseleave', '#star-picker', function() {
+            $('.star-opt').each(function(i) { $(this).text(i < selectedDiem ? '★' : '☆').css('color', i < selectedDiem ? 'var(--fs-warning)' : 'var(--fs-muted-soft)'); });
+        }).on('click', '.star-opt', function() {
+            selectedDiem = parseInt($(this).data('val'));
+            $('#review-diem').val(selectedDiem);
+            $('.star-opt').each(function(i) { $(this).text(i < selectedDiem ? '★' : '☆').css('color', i < selectedDiem ? 'var(--fs-warning)' : 'var(--fs-muted-soft)'); });
+        });
+
+        $('#review-nhanxet').on('input', function() { $('#char-count').text($(this).val().length); });
+
+        function submitReview() {
+            var mactdh = $('#review-mactdh').val();
+            var diem = parseInt($('#review-diem').val());
+            var nhanxet = $('#review-nhanxet').val().trim();
+            var fb = $('#review-feedback');
+
+            if (!mactdh) { showReviewMsg('error', 'Vui lòng chọn món muốn đánh giá'); return; }
+            if (!diem || diem < 1 || diem > 5) { showReviewMsg('error', 'Vui lòng chọn điểm đánh giá (1-5 sao)'); return; }
+
+            $.post(URL_SUBMIT_REVIEW,
+                { mactdh: mactdh, diem: diem, nhanxet: nhanxet, __RequestVerificationToken: ANTIFORGERY_TOKEN },
+                function(r) {
+                    if (r.success) {
+                        showReviewMsg('success', r.message);
+                        $('#review-mactdh').val('');
+                        $('#review-nhanxet').val('');
+                        selectedDiem = 0; $('#review-diem').val(0);
+                        $('.star-opt').text('☆').css('color', '#ccc');
+                        setTimeout(function() { loadReviews(true); }, 800);
+                    } else {
+                        showReviewMsg('error', r.message);
+                    }
+                }
+            ).fail(function() { showReviewMsg('error', 'Lỗi kết nối. Vui lòng thử lại.'); });
+        }
+
+        function showReviewMsg(type, msg) {
+            var fb = $('#review-feedback');
+            var bg = type === 'success' ? '#d4edda' : '#f8d7da';
+            var color = type === 'success' ? '#155724' : '#721c24';
+            fb.css({ background: bg, color: color, border: '1px solid ' + (type === 'success' ? '#c3e6cb' : '#f5c6cb') })
+              .html((type === 'success' ? '✅ ' : '❌ ') + msg).show();
+            if (type === 'success') setTimeout(function(){ fb.fadeOut(); }, 4000);
+        }
+
+        // ===== Load đơn hàng đã mua để chọn đánh giá =====
+        function loadReviewableItems() {
+            $.get('@Url.Action("GetReviewableItems","Home")', { quanId: QUAN_ID }, function(r) {
+                if (r && r.items && r.items.length > 0) {
+                    r.items.forEach(function(item) {
+                        $('#review-mactdh').append('<option value="' + item.mactdh + '">' + item.tenmon + ' — ĐH#' + item.madh + '</option>');
+                    });
+                }
+            }).fail(function() { /* silent fail */ });
+        }
+
+        $(document).ready(function() {
+            loadReviews(true);
+            @if (canReview) { <text>loadReviewableItems();</text> }
+
+            // Init category Bottom Sheet
+            buildCategorySheet();
+        });
+
+        // ===== FAB + BOTTOM SHEET — Category Navigation =====
+        var categorySheetData = [];
+
+        function buildCategorySheet() {
+            var container = document.getElementById('categorySheetList');
+            var scrollContainer = document.querySelector('.menu-restaurant-category .scrollbar-container');
+            if (!container || !scrollContainer) return;
+
+            var links = scrollContainer.querySelectorAll('a');
+            var html = '';
+            var totalItems = 0;
+
+            links.forEach(function(link) {
+                var itemDiv = link.querySelector('.item');
+                var span = itemDiv ? itemDiv.querySelector('span') : null;
+                if (!span) return;
+                var name = span.textContent.trim();
+                var href = link.getAttribute('href') || '';
+                var isActive = span.classList.contains('active');
+                var count = 0;
+
+                // count items per category from URL parameter
+                var params = new URLSearchParams(href.split('?')[1] || '');
+                var idDM = params.get('idDM') || '';
+
+                var icon = getCategoryIcon(name);
+                categorySheetData.push({ name: name, href: href, idDM: idDM, isActive: isActive });
+                totalItems++;
+
+                html += '<a href="' + href + '" class="fs-bs-item' + (isActive ? ' active' : '') + '" onclick="closeCategorySheet()">' +
+                    '<span class="bs-item-icon">' + icon + '</span>' +
+                    '<span class="bs-item-name">' + name + '</span>' +
+                    '</a>';
+            });
+
+            container.innerHTML = html;
+
+            // Update badge count
+            var badge = document.getElementById('categoryFabBadge');
+            if (badge) badge.textContent = totalItems;
+        }
+
+        function getCategoryIcon(name) {
+            // Strip Vietnamese diacritics for reliable matching
+            function stripDia(s) {
+                return s.toLowerCase()
+                    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                    .replace(/d/g, 'd');
+            }
+            var n = stripDia(name);
+            if (n === 'tat ca') return '🍽';
+            if (n.includes('com')) return '🍚';
+            if (n.includes('pho')) return '🍜';
+            if (n.includes('mi') || n.includes('bun')) return '🍝';
+            if (n.includes('lau')) return '🥘';
+            if (n.includes('banh')) return '🥟';
+            if (n.includes('salad') || n.includes('rau')) return '🥗';
+            if (n.includes('sushi') || n.includes('sashimi')) return '🍣';
+            if (n.includes('thit')) return '🥩';
+            if (n.includes('ca') || n.includes('hai san')) return '🦐';
+            if (n.includes('tra') || n.includes('cafe') || n.includes('caphe')) return '🧋';
+            if (n.includes('nuoc') || n.includes('uong')) return '🥤';
+            if (n.includes('trang mieng')) return '🍰';
+            if (n.includes('khai vi')) return '🥟';
+            return '📂';
+        }
+
+        function openCategorySheet() {
+            var sheet = document.getElementById('categorySheet');
+            var overlay = document.getElementById('categorySheetOverlay');
+            if (sheet) sheet.classList.add('active');
+            if (overlay) overlay.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeCategorySheet() {
+            var sheet = document.getElementById('categorySheet');
+            var overlay = document.getElementById('categorySheetOverlay');
+            if (sheet) sheet.classList.remove('active');
+            if (overlay) overlay.classList.remove('active');
+            document.body.style.overflow = '';
+        }
+
+        // Close sheet on Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') closeCategorySheet();
+        });
+
+        // ===== Size Selector: update price + hidden maMonAn input =====
+        function selectSize(btn) {
+            var container = btn.closest('.fs-size-selector');
+            if (!container) return;
+            container.querySelectorAll('.fs-size-chip').forEach(function(c) {
+                c.style.background = '#fff';
+                c.style.color = '#555';
+                c.style.borderColor = '#ddd';
+                c.classList.remove('active');
+            });
+            btn.style.background = '#3CB815';
+            btn.style.color = '#fff';
+            btn.style.borderColor = '#3CB815';
+            btn.classList.add('active');
+
+            var mamon = btn.getAttribute('data-mamon');
+            var giatien = btn.getAttribute('data-giatien');
+            var bientheid = btn.getAttribute('data-bientheid');
+
+            // Update price display
+            var priceEl = document.querySelector('.current-price-' + mamon);
+            if (priceEl) {
+                var num = parseFloat(giatien) || 0;
+                priceEl.innerHTML = num.toLocaleString('vi-VN') + '<sup style="font-size:11px;top:-0.4em;">đ</sup>';
+            }
+            // Update hidden maMonAn input to send variant ID
+            var hiddenInput = document.querySelector('.maMonAnInput-' + mamon);
+            if (hiddenInput) hiddenInput.value = bientheid;
+        }
+
+        // ===== Sticky Category Bar with scroll shadow =====
+        document.addEventListener('DOMContentLoaded', function() {
+            var catBar = document.querySelector('.menu-restaurant-category');
+            if (!catBar) return;
+
+            // Add sticky class on mobile
+            if (window.innerWidth < 768) {
+                catBar.classList.add('is-sticky');
+            }
+
+            // Toggle scrolled class based on scroll position
+            window.addEventListener('scroll', function() {
+                if (window.innerWidth >= 768) return;
+                if (window.scrollY > 100) {
+                    catBar.classList.add('scrolled');
+                } else {
+                    catBar.classList.remove('scrolled');
+                }
+            }, { passive: true });
+
+            // Re-check on resize
+            window.addEventListener('resize', function() {
+                if (window.innerWidth < 768) {
+                    catBar.classList.add('is-sticky');
+                } else {
+                    catBar.classList.remove('is-sticky', 'scrolled');
+                }
+            }, { passive: true });
+        });
+    </script>
+}

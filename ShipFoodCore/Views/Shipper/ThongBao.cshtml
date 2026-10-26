@@ -1,0 +1,160 @@
+@{
+    ViewBag.Title = "Thông báo";
+    Layout = "~/Views/Shared/_LayoutPageShipper.cshtml";
+    var notifications = ViewBag.Notifications as List<ShipFood.Models.tbDonHang> ?? new();
+}
+
+<style>
+    .notif-page {
+        max-width: 800px; margin: 0 auto; padding: 24px;
+    }
+    @@media (max-width:768px) { .notif-page { padding: 12px; } }
+
+    .notif-header {
+        display: flex; justify-content: space-between; align-items: center;
+        margin-bottom: 24px;
+    }
+    .notif-header h2 {
+        font-size: 24px; font-weight: 700; margin: 0; color: #1a1a2e;
+    }
+
+    /* ── Notification Feed ── */
+    .notif-feed { display: flex; flex-direction: column; gap: 8px; }
+
+    .notif-item {
+        background: white;
+        border-radius: 14px;
+        padding: 18px 20px;
+        border: 1px solid #f0f0f0;
+        display: flex;
+        align-items: flex-start;
+        gap: 14px;
+        transition: all .2s;
+        cursor: default;
+    }
+    .notif-item:hover {
+        box-shadow: 0 2px 12px rgba(0,0,0,.05);
+        border-color: #e0e7ff;
+    }
+    .notif-item.unread {
+        border-left: 3px solid #3CB815;
+        background: #fafdf8;
+    }
+
+    .notif-icon {
+        width: 42px; height: 42px;
+        border-radius: 12px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 18px;
+        flex-shrink: 0;
+    }
+    .notif-icon.order { background: #dbeafe; color: #2563eb; }
+    .notif-icon.success { background: #f0fdf4; color: #16a34a; }
+    .notif-icon.warning { background: #fefce8; color: #d97706; }
+    .notif-icon.info { background: #f3f4f6; color: #6b7280; }
+
+    .notif-body { flex: 1; min-width: 0; }
+    .notif-body .notif-title {
+        font-size: 14px; font-weight: 600; color: #1a1a2e;
+        margin: 0 0 4px;
+    }
+    .notif-body .notif-desc {
+        font-size: 13px; color: #6b7280; margin: 0 0 6px;
+        line-height: 1.4;
+    }
+    .notif-body .notif-time {
+        font-size: 11px; color: #9ca3af;
+    }
+    .notif-body .notif-action {
+        margin-top: 10px;
+    }
+    .notif-body .notif-action .btn {
+        padding: 6px 16px; font-size: 12px; border-radius: 8px;
+        font-weight: 600; background: #f3f4f6; color: #4b5563;
+        border: 1px solid #e5e7eb; transition: all .2s;
+    }
+    .notif-body .notif-action .btn:hover {
+        background: #e5e7eb;
+    }
+
+    .notif-empty {
+        text-align: center; padding: 80px 20px; color: #9ca3af;
+    }
+    .notif-empty .icon { font-size: 56px; margin-bottom: 16px; }
+</style>
+
+<div class="content-body">
+<div class="notif-page">
+    <div class="notif-header">
+        <h2>🔔 Thông báo</h2>
+        <span style="font-size:13px;color:#6b7280;background:#f3f4f6;padding:6px 14px;border-radius:20px;">
+            @notifications.Count thông báo
+        </span>
+    </div>
+
+    @if (notifications.Any())
+    {
+        <div class="notif-feed">
+            @foreach (var item in notifications)
+            {
+                var iconClass = "info";
+                var icon = "fa-bell";
+                var isUnread = item.trangthai == "Đang giao" || item.trangthai == "Chờ shipper lấy hàng";
+
+                if (item.trangthai == "Hoàn thành") { iconClass = "success"; icon = "fa-check-circle"; }
+                else if (item.trangthai == "Đã hủy") { iconClass = "warning"; icon = "fa-times-circle"; }
+                else if (item.trangthai == "Đang giao") { iconClass = "order"; icon = "fa-truck"; }
+                else if (item.trangthai == "Chờ shipper lấy hàng") { iconClass = "order"; icon = "fa-box-open"; }
+
+                <div class="notif-item @(isUnread ? "unread" : "")">
+                    <div class="notif-icon @iconClass">
+                        <i class="fas @icon"></i>
+                    </div>
+                    <div class="notif-body">
+                        <p class="notif-title">Đơn hàng #@item.madh</p>
+                        <p class="notif-desc">
+                            @switch (item.trangthai)
+                            {
+                                case "Hoàn thành":
+                                    <text>Đơn hàng đã giao thành công. Phí ship @(item.phiship?.ToString("N0") ?? "0")đ đã được cộng vào ví.</text>
+                                    break;
+                                case "Đã hủy":
+                                    <text>Đơn hàng đã bị hủy.</text>
+                                    break;
+                                case "Đang giao":
+                                    <text>Đơn hàng đang được giao. Hãy cập nhật trạng thái khi hoàn thành.</text>
+                                    break;
+                                case "Chờ shipper lấy hàng":
+                                    <text>Đơn hàng mới đang chờ bạn nhận. Nhấn để xem chi tiết.</text>
+                                    break;
+                                default:
+                                    <text>Trạng thái: @item.trangthai</text>
+                                    break;
+                            }
+                        </p>
+                        <p class="notif-time">
+                            <i class="far fa-clock"></i> @TinhToan.GioVietNam(item.ngaydathang)?.ToString("dd/MM/yyyy HH:mm")
+                        </p>
+                        @if (item.trangthai == "Chờ shipper lấy hàng")
+                        {
+                            <div class="notif-action">
+                                <a href="@Url.Action("OrderDetail","Shipper", new { id = item.madh })" class="btn">
+                                    <i class="fas fa-eye"></i> Xem đơn
+                                </a>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="notif-empty">
+            <div class="icon">🔔</div>
+            <p>Không có thông báo nào</p>
+            <small style="color:#bbb;">Bạn sẽ nhận được thông báo khi có đơn hàng mới</small>
+        </div>
+    }
+</div>
+</div>

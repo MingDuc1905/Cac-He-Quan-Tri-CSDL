@@ -1,0 +1,173 @@
+@model ShipFood.Models.tbDonHang
+@{
+    ViewBag.Title = "Chi tiết đơn hàng";
+    Layout = "~/Views/Shared/_LayoutPageAdmin.cshtml";
+    var listchitietdon = ViewBag.chitietdonhang as List<ShipFood.Models.tbChiTietDonHang> ?? new();
+}
+
+<style>
+    .detail-page { max-width: 1200px; margin: 0 auto; padding: 24px; }
+    @@media (max-width:768px) { .detail-page { padding: 12px; } }
+
+    .restaurant-info {
+        background: linear-gradient(135deg, #1a1a2e, #16213e);
+        border-radius: 16px; padding: 24px; color: white;
+        position: relative; overflow: hidden;
+    }
+    .restaurant-info img {
+        width: 80px; height: 80px; border-radius: 50%;
+        border: 3px solid rgba(255,255,255,.2); object-fit: cover;
+    }
+    .restaurant-info h3 { margin: 12px 0 4px; font-size: 20px; font-weight: 700; }
+    .restaurant-info .badge { background: rgba(255,255,255,.15); padding: 4px 12px; border-radius: 8px; font-size: 12px; }
+
+    .info-card {
+        background: white; border-radius: 14px; padding: 20px;
+        border: 1px solid #f0f0f0; height: 100%;
+    }
+    .info-card .label { font-size: 12px; color: #6b7280; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
+    .info-card .value { font-size: 15px; font-weight: 600; color: #1a1a2e; }
+
+    .summary-box {
+        background: #f8f9fa; border-radius: 12px; padding: 16px;
+        text-align: center;
+    }
+    .summary-box .label { font-size: 12px; color: #6b7280; }
+    .summary-box .value { font-size: 18px; font-weight: 700; color: #1a1a2e; }
+</style>
+
+<div class="detail-page">
+    <!-- Header -->
+    <div class="page-header">
+        <div>
+            <h2><i class="fas fa-clipboard-list" style="color:#3CB815;margin-right:8px;"></i>Đơn hàng #@Model.madh</h2>
+            <div class="breadcrumb">
+                <a href="@Url.Action("Order","Admin")">Đơn hàng</a>
+                <span style="margin:0 8px;color:#9ca3af;">/</span>
+                <span style="color:#6b7280;">Chi tiết</span>
+            </div>
+        </div>
+        <a href="@Url.Action("Order","Admin")" class="btn btn-outline">
+            <i class="fas fa-arrow-left"></i> Quay lại
+        </a>
+    </div>
+
+    <div class="row g-4">
+        <!-- Left Column: Restaurant Info + Note -->
+        <div class="col-xl-3 col-lg-4">
+            <div class="restaurant-info">
+                <img src="@TinhToan.HinhAnhUrl(Model.tbQuanAn?.hinhanh)" alt="" onerror="this.src='/Source/Home/img/pizza.jpg'" />
+                <h3>@Model.tbQuanAn?.tenquanan</h3>
+                <span class="badge"><i class="fas fa-map-pin"></i> @Model.tbQuanAn?.diachi</span>
+            </div>
+
+            @if (!string.IsNullOrEmpty(Model.ghichu))
+            {
+                <div class="info-card mt-3">
+                    <p class="label"><i class="fas fa-edit" style="margin-right:4px;color:#6b7280;"></i>Ghi chú</p>
+                    <p class="value" style="font-weight:400;">@Model.ghichu</p>
+                </div>
+            }
+
+            <!-- Contact Info -->
+            <div class="info-card mt-3">
+                <p class="label"><i class="fas fa-phone" style="margin-right:4px;color:#6b7280;"></i>Liên hệ</p>
+                @if (Model.tbThongTinDatHang != null)
+                {
+                    <div class="d-flex align-items-center gap-2 mb-2">
+                        <i class="fas fa-user" style="color:#3CB815;width:16px;"></i>
+                        <span>@Model.tbThongTinDatHang.tennguoinhan</span>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="fas fa-phone" style="color:#3CB815;width:16px;"></i>
+                        <span>@Model.tbThongTinDatHang.sdt</span>
+                    </div>
+                }
+                <div class="d-flex align-items-center gap-2 mt-2">
+                    <i class="fas fa-map-marker-alt" style="color:#3CB815;width:16px;"></i>
+                    <span style="font-size:13px;">@Model.tbThongTinDatHang?.diachi</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Items + Payment -->
+        <div class="col-xl-9 col-lg-8">
+            <!-- Items Table -->
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h4 class="mb-0"><i class="fas fa-receipt" style="color:#3CB815;margin-right:8px;"></i>Món ăn</h4>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Món ăn</th>
+                                    <th style="width:80px;text-align:center;">SL</th>
+                                    <th style="width:120px;text-align:right;">Đơn giá</th>
+                                    <th style="width:120px;text-align:right;">Thành tiền</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach(var item in listchitietdon) {
+                                    var tonggia = item.soluong * item.dongia;
+                                    <tr>
+                                        <td>
+                                            <div class="d-flex align-items-center gap-3">
+                                                <img src="@TinhToan.HinhAnhUrl(item.tbMonAn?.hinhanh)" width="48" height="48"
+                                                     style="border-radius:10px;object-fit:cover;" alt=""
+                                                     onerror="this.src='/Source/Home/img/pizza.jpg'" />
+                                                <div>
+                                                    <strong style="color:#1a1a2e;">@item.tbMonAn?.tenmon</strong>
+                                                    <br /><small style="color:#6b7280;">@item.tbMonAn?.tbDanhMuc?.tendanhmuc</small>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td style="text-align:center;font-weight:600;">x @item.soluong</td>
+                                        <td style="text-align:right;">@item.dongia?.ToString("N0")đ</td>
+                                        <td style="text-align:right;font-weight:600;color:#1a1a2e;">@tonggia?.ToString("N0")đ</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Payment Summary -->
+            <div class="card shadow-sm mt-4">
+                <div class="card-header">
+                    <h4 class="mb-0"><i class="fas fa-dollar-sign" style="color:#3CB815;margin-right:8px;"></i>Thanh toán</h4>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-6 col-md-3">
+                            <div class="summary-box">
+                                <p class="label">Trả quán</p>
+                                <p class="value">@((Model.tongtien - Model.phiship)?.ToString("N0"))đ</p>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="summary-box">
+                                <p class="label">Phí ship</p>
+                                <p class="value" style="color:#3CB815;">@Model.phiship?.ToString("N0")đ</p>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="summary-box">
+                                <p class="label">Thu khách</p>
+                                <p class="value">@Model.tongtien?.ToString("N0")đ</p>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="summary-box" style="background:#f0fdf4;">
+                                <p class="label">Trạng thái</p>
+                                <p class="value" style="color:#3CB815;font-size:14px;">@Model.trangthai</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

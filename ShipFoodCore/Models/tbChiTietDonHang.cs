@@ -1,0 +1,49 @@
+// ============================================================
+// 📋 tbChiTietDonHang — Model Chi tiết đơn hàng (Order Detail)
+// ============================================================
+// Ý nghĩa: Từng món ăn trong đơn hàng, gồm số lượng, đơn giá, đánh giá
+// Chức năng: FK→tbBienTheMonAn.id (biến thể), FK→tbDonHang.madh, navigation đánh giá
+// KEYWORDS: order detail, chi tiết đơn hàng, cart item, order item, line item
+// ============================================================
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+
+namespace ShipFood.Models;
+
+[Table("tbChiTietDonHang")]
+public partial class tbChiTietDonHang
+{
+    [Key]
+    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+    public int mactdh { get; set; }
+
+    public int? madh { get; set; }
+
+    /// <summary>
+    /// FK tới tbBienTheMonAn.id (biến thể size của món ăn)
+    /// </summary>
+    public int? mamon { get; set; }
+
+    public int? soluong { get; set; }
+
+    [Column(TypeName = "money")]
+    public decimal? dongia { get; set; }
+
+    // Navigation
+    [ForeignKey("madh")]
+    public virtual tbDonHang? tbDonHang { get; set; }
+
+    [ForeignKey("mamon")]
+    public virtual tbBienTheMonAn? tbBienTheMonAn { get; set; }
+
+    public virtual ICollection<tbDanhGia> tbDanhGias { get; set; } = new HashSet<tbDanhGia>();
+
+    // ponytail: backward-compat alias — dùng tbDanhGias (số nhiều)
+    [NotMapped]
+    public ICollection<tbDanhGia> tbDanhGia => tbDanhGias;
+
+    // ─── Backward-compatible: tbMonAn qua tbBienTheMonAn ───
+    // ponytail: backward-compat — cần Include(tbBienTheMonAn).ThenInclude(tbMonAn) trước
+    [NotMapped]
+    public tbMonAn? tbMonAn => tbBienTheMonAn?.tbMonAn;
+}

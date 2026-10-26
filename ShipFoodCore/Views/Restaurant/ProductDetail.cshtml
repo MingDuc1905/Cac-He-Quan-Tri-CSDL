@@ -1,0 +1,177 @@
+﻿@inject ShipFood.Models.dbFoodyEntities _db
+@{
+    ViewBag.Title = "ProductDetail";
+    Layout = "~/Views/Shared/_LayoutPageRestaurant.cshtml";
+    ShipFood.Models.tbMonAn monAn = ViewBag.monAn;
+    List<ShipFood.Models.tbDanhMuc> danhMucs = _db.tbDanhMuc.ToList();
+    
+    // Lấy các biến thể hiện tại
+    var bienThes = monAn.mamon > 0 ? _db.tbBienTheMonAn.Where(b => b.mamon == monAn.mamon).ToList() : new List<ShipFood.Models.tbBienTheMonAn>();
+    var giaM = bienThes.FirstOrDefault(b => b.size == "M")?.giatien ?? monAn.giatien;
+    var sizeLVal = bienThes.FirstOrDefault(b => b.size == "L");
+    var sizeXLVal = bienThes.FirstOrDefault(b => b.size == "XL");
+}
+
+<div class="container-fluid">
+    <div class="row page-titles mx-0">
+        <div class="col-sm-6 p-md-0">
+            <div class="welcome-text">
+                <h4>@(monAn.mamon > 0 ? "Chỉnh sửa" : "Thêm") Thực đơn</h4>
+            </div>
+        </div>
+        <div class="col-sm-6 p-md-0 justify-content-sm-end mt-2 mt-sm-0 d-flex">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="javascript:void(0)">Cửa hàng</a></li>
+                <li class="breadcrumb-item active"><a href="javascript:void(0)">@(monAn.mamon > 0 ? "Chỉnh sửa" : "Thêm") món</a></li>
+            </ol>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="card-title">@(monAn.mamon > 0 ? "Chỉnh sửa" : "Thêm") Thực đơn</h4>
+                </div>
+                <div class="card-body">
+                    <div class="form-validation">
+                        <form class="form-valide" action="~/Restaurant/PostMonAn" method="post" enctype="multipart/form-data">
+                            <div class="row">
+                                <div class="col-xl-12">
+                                    <input type="hidden" name="mamon" value="@monAn.mamon" />
+                                    
+                                    <!-- Tên món -->
+                                    <div class="form-group row">
+                                        <label class="col-lg-4 col-form-label" for="val-name">
+                                            Tên món <span class="text-danger">*</span>
+                                        </label>
+                                        <div class="col-lg-6">
+                                            <input type="text" class="form-control" id="val-name" name="tenmon"
+                                                   value="@monAn.tenmon" placeholder="Nhập tên món" required />
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Danh mục -->
+                                    <div class="form-group row">
+                                        <label class="col-lg-4 col-form-label" for="val-mon">
+                                            Danh mục <span class="text-danger">*</span>
+                                        </label>
+                                        <div class="col-lg-6">
+                                            <select class="form-control" id="val-mon" name="madanhmuc">
+                                                <option value="">Chọn danh mục</option>
+                                                @foreach (var i in danhMucs)
+                                                {
+                                                    if (monAn.madanhmuc == i.madanhmuc)
+                                                    {
+                                                        <option value="@i.madanhmuc" selected="selected">@i.tendanhmuc</option>
+                                                    }
+                                                    else
+                                                    {
+                                                        <option value="@i.madanhmuc">@i.tendanhmuc</option>
+                                                    }
+                                                }
+                                            </select>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- GIÁ THEO SIZE (như Grab/ShopeeFood) -->
+                                    <div class="form-group row">
+                                        <label class="col-lg-4 col-form-label">Giá theo size</label>
+                                        <div class="col-lg-6">
+                                            <div class="row g-2 mb-2">
+                                                <div class="col-4">
+                                                    <div class="input-group">
+                                                        <span class="input-group-text">Size M</span>
+                                                        <input type="number" class="form-control" name="giatien"
+                                                               value="@(giaM?.ToString("N0") ?? "")" placeholder="Giá M" required />
+                                                    </div>
+                                                </div>
+                                                <div class="col-4">
+                                                    <div class="input-group">
+                                                        <span class="input-group-text">Size L</span>
+                                                        <input type="number" class="form-control" name="giaL"
+                                                               value="@(sizeLVal?.giatien?.ToString("N0") ?? "")" placeholder="Giá L" />
+                                                    </div>
+                                                    <input type="hidden" name="sizeL" value="@(sizeLVal != null ? "L" : "L")" />
+                                                </div>
+                                                <div class="col-4">
+                                                    <div class="input-group">
+                                                        <span class="input-group-text">Size XL</span>
+                                                        <input type="number" class="form-control" name="giaXL"
+                                                               value="@(sizeXLVal?.giatien?.ToString("N0") ?? "")" placeholder="Giá XL" />
+                                                    </div>
+                                                    <input type="hidden" name="sizeXL" value="@(sizeXLVal != null ? "XL" : "XL")" />
+                                                </div>
+                                            </div>
+                                            <small class="text-muted">Nhập giá Size M là bắt buộc. Size L/XL để trống nếu không có.</small>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Mô tả -->
+                                    <div class="form-group row">
+                                        <label class="col-lg-4 col-form-label" for="val-suggestions">
+                                            Mô tả
+                                        </label>
+                                        <div class="col-lg-6">
+                                            <textarea class="form-control" id="val-suggestions" name="mota"
+                                                      rows="4" placeholder="Nhập mô tả món ăn...">@monAn.mota</textarea>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Hình ảnh -->
+                                    <div class="form-group row">
+                                        <label class="col-lg-4 col-form-label">
+                                            Hình ảnh món <span class="text-danger">*</span>
+                                        </label>
+                                        <div class="col-lg-6">
+                                            <input type="file" id="hinh-anh" name="fileAnh" accept="image/*" class="form-control" />
+                                        </div>
+                                        <div class="col-lg-8 offset-lg-4 mt-2" id="bg_add">
+                                            @if (!string.IsNullOrEmpty(monAn.hinhanh))
+                                            {
+                                                <img src="@TinhToan.HinhAnhUrl(monAn.hinhanh)" style="max-width:300px;max-height:200px;border-radius:8px;border:1px solid #ddd;" />
+                                            }
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group row mt-4">
+                                        <div class="col-lg-8 offset-lg-4">
+                                            <button type="submit" class="btn btn-primary px-5">
+                                                <i class="fa fa-check"></i> @(monAn.mamon > 0 ? "Cập nhật" : "Thêm món")
+                                            </button>
+                                            <a href="~/Restaurant/ProductList" class="btn btn-outline-secondary ms-2">Hủy</a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script type="text/javascript">
+    function uploadImage() {
+        var fileInput = document.getElementById('hinh-anh');
+        var file = fileInput.files[0];
+        if (!file) return;
+        var imageType = /image.*/;
+
+        if (file.type.match(imageType)) {
+            var reader = new FileReader();
+            reader.onload = function (e) {
+                var img = new Image();
+                img.src = reader.result;
+                img.style.cssText = 'max-width:300px;max-height:200px;border-radius:8px;border:1px solid #ddd;';
+                var preview = document.getElementById('bg_add');
+                preview.innerHTML = '';
+                preview.appendChild(img);
+            }
+            reader.readAsDataURL(file);
+        } else {
+            alert('Chỉ chấp nhận file hình ảnh');
+        }
+    }
+    document.getElementById('hinh-anh').addEventListener('change', uploadImage);
+</script>

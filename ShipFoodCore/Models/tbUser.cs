@@ -1,0 +1,62 @@
+// ============================================================
+// 👤 tbUser — Model Người dùng (User Account)
+// ============================================================
+// Ý nghĩa: Tài khoản đăng nhập chính cho 4 roles
+// Chức năng: Auth, phân loại role (loaitaikhoan), ví tiền, 1:1 với từng role model
+// KEYWORDS: user, account, đăng nhập, login, authentication, role, ví tiền
+// ============================================================
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+
+namespace ShipFood.Models;
+
+[Table("tbUser")]
+public partial class tbUser
+{
+    // ════════════════════════════════════════════════════════════
+    // 👤 KHỐI TÀI KHOẢN USER — cột bảng tbUser (4 roles)
+    // ════════════════════════════════════════════════════════════
+    // KEYWORDS: user, username, pwd, loaitaikhoan, vitien, trangthai
+    // → TẠO BỞI: HomeController (Signup, Google/Facebook OAuth),
+    //   AdminController (PostTaiKhoan)
+    // → ROLE: loaitaikhoan = "Khách hàng"|"Quán ăn"|"Shipper"|"Admin"
+    //   (khớp RouteRoleMap trong RoleGuardMiddleware.cs)
+    // → TRANGTHAI: 1 = hoạt động, 2 = khóa, 0/3 = chờ duyệt/bị hủy
+    // → PWD: plain-text (lưu ý bảo mật — dự án chưa hash mật khẩu)
+    // → NAVIGATION 1:1: tbKhachHang/tbQuanAn/tbShipper/tbAdmin theo role
+
+    [Key]
+    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+    public int userid { get; set; }
+
+    [Required]
+    [MaxLength(50)]
+    public string username { get; set; } = null!;
+
+    [Required]
+    [MaxLength(100)]
+    public string pwd { get; set; } = null!;
+
+    [Required]
+    [MaxLength(50)]
+    public string loaitaikhoan { get; set; } = null!;
+
+    [Required]
+    [MaxLength(11)]
+    public string sdt { get; set; } = null!;
+
+    [Column(TypeName = "money")]
+    public decimal? vitien { get; set; }
+
+    [Required]
+    [MaxLength(50)]
+    public string email { get; set; } = null!;
+
+    public int trangthai { get; set; }
+
+    // Navigation properties
+    public virtual tbAdmin? tbAdmin { get; set; }
+    public virtual tbKhachHang? tbKhachHang { get; set; }
+    public virtual tbQuanAn? tbQuanAn { get; set; }
+    public virtual tbShipper? tbShipper { get; set; }
+}

@@ -1,0 +1,298 @@
+@inject ShipFood.Models.dbFoodyEntities _db
+@{
+    var userJson = Context.Session.GetString("user");
+    ShipFood.Models.tbUser? currentUser = userJson != null ? JsonSerializer.Deserialize<tbUser>(userJson) : null;
+    ShipFood.Models.tbAdmin? adminInfo = currentUser != null ? _db.tbAdmin.Find(currentUser.userid) : null;
+    var adminName = adminInfo?.tenadmin ?? currentUser?.username ?? "Admin";
+    var firstLetter = !string.IsNullOrEmpty(adminName) ? adminName[0].ToString().ToUpper() : "A";
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Fastship - Khám phá, đặt hàng, giao tân nơi</title>
+    <!-- Favicon icon -->
+    <link href="~/Source/Home/img/favicon.ico" rel="icon" />
+    <link rel="stylesheet" href="~/Source/Admin/css/admin.css"/>
+    <link href="~/Source/Admin/vendor/bootstrap-select/dist/css/bootstrap-select.min.css" rel="stylesheet" />
+    <link href="~/Source/Admin/css/style-admin.css" rel="stylesheet" />
+    <!-- Font Awesome 5 (CDN) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.10.0/css/all.min.css" onerror="var s=document.createElement('link');s.rel='stylesheet';s.href='https://use.fontawesome.com/releases/v5.10.0/css/all.css';document.head.appendChild(s);console.warn('FA CDN fallback');" />
+    <!-- Bootstrap 5.3 (CDN) -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM" crossorigin="anonymous">
+    <!-- Global Design System v4.0 -->
+    <link href="~/Source/Shared/css/fastship-design-tokens.css" rel="stylesheet" />
+    <link href="~/Source/Shared/css/fastship-animations.css" rel="stylesheet" />
+    <link href="~/Source/Shared/css/fs-dashboard-overrides.css" rel="stylesheet" />
+    <style>
+        /* ── Admin-only: Sidebar toggle button ── */
+        .deznav .deznav-toggle {
+            position: absolute; top: 50%; right: -14px; transform: translateY(-50%);
+            width: 28px; height: 28px; border-radius: 50%;
+            background: var(--fs-green, #3CB815); color: #fff;
+            border: 2px solid #fff; cursor: pointer; z-index: 1060;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.12);
+            transition: transform .2s ease, background .2s ease;
+        }
+        .deznav .deznav-toggle:hover { background: #2ea310; transform: translateY(-50%) scale(1.1); }
+        .deznav.deznav-collapsed { width: 0 !important; min-width: 0 !important; padding: 0 !important; }
+        .deznav.deznav-collapsed .deznav-scroll { display: none; }
+        .deznav.deznav-collapsed .deznav-toggle { right: auto; left: 0; }
+        .deznav.deznav-collapsed .deznav-toggle i { transform: rotate(180deg); }
+
+        /* ── Toolbar ── */
+        .toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+        /* ── Alerts ── */
+        .alert { border-radius: 12px; border: none; padding: 14px 18px; font-size: 14px; }
+        .alert-success { background: #f0fdf4; color: #16a34a; }
+        .alert-danger { background: #fef2f2; color: #dc2626; }
+    </style>
+</head>
+
+<body>
+    <!--*******************
+        Preloader start
+    ********************-->
+    <div id="preloader">
+        <div class="sk-three-bounce">
+            <div class="sk-child sk-bounce1"></div>
+            <div class="sk-child sk-bounce2"></div>
+            <div class="sk-child sk-bounce3"></div>
+        </div>
+    </div>
+    <!--*******************
+        Preloader end
+    ********************-->
+    <!--**********************************
+        Main wrapper start
+    ***********************************-->
+    <div id="main-wrapper">
+        <!--**********************************
+              Nav header start
+          ***********************************-->
+        <div class="nav-header">
+            <a href="@Url.Action("QuanLyQuanAn", "Admin")" class="brand-logo">
+                <!-- <img class="logo-abbr" src="./images/logo.png" alt="" /> -->
+                <img class="logo-compact" src="~/Source/Restaurant/images/FASTSHIP.png" alt="" />
+                <img class="brand-title" src="~/Source/Restaurant/images/FASTSHIP.png" alt="" />
+            </a>
+
+            <div class="nav-control">
+                <div class="hamburger"><span class="line"></span><span class="line"></span><span class="line"></span></div>
+            </div>
+        </div>
+        <!--**********************************
+              Nav header end
+          ***********************************-->
+        <!--**********************************
+              Chat box start
+          ***********************************-->
+        <!--**********************************
+              Chat box End
+          ***********************************-->
+        <!--**********************************
+              Header start
+          ***********************************-->
+        <!-- header z-index: 1050 (over filter bar 1000) -->
+        <div class="header" style="z-index:1050;">
+            <div class="header-content">
+                <nav class="navbar navbar-expand">
+                    <div class="collapse navbar-collapse justify-content-between">
+                        <div class="header-left d-none d-md-flex align-items-center ps-3">
+                            <nav aria-label="breadcrumb">
+                                <ol class="breadcrumb mb-0 bg-transparent p-0" style="font-size: 14px;">
+                                    <li class="breadcrumb-item"><a href="/Admin/Dashboard" class="text-muted"><i class="fas fa-home me-1"></i>Admin</a></li>
+                                    @if (!string.IsNullOrEmpty(ViewBag.Title))
+                                    {
+                                        <li class="breadcrumb-item active" aria-current="page" style="color: var(--fs-green); font-weight: 500;">@ViewBag.Title</li>
+                                    }
+                                </ol>
+                            </nav>
+                        </div>
+
+                        <ul class="navbar-nav header-right">
+                            <li class="nav-item dropdown notification_dropdown">
+                                <a class="nav-link dz-fullscreen primary" href="#">
+                                    <svg id="Capa_1"
+                                         enable-background="new 0 0 482.239 482.239"
+                                         height="22"
+                                         viewBox="0 0 482.239 482.239"
+                                         width="22"
+                                         xmlns="http://www.w3.org/2000/svg">
+                                        <path d="m0 17.223v120.56h34.446v-103.337h103.337v-34.446h-120.56c-9.52 0-17.223 7.703-17.223 17.223z"
+                                              fill="" />
+                                        <path d="m465.016 0h-120.56v34.446h103.337v103.337h34.446v-120.56c0-9.52-7.703-17.223-17.223-17.223z"
+                                              fill="" />
+                                        <path d="m447.793 447.793h-103.337v34.446h120.56c9.52 0 17.223-7.703 17.223-17.223v-120.56h-34.446z"
+                                              fill="" />
+                                        <path d="m34.446 344.456h-34.446v120.56c0 9.52 7.703 17.223 17.223 17.223h120.56v-34.446h-103.337z"
+                                              fill="" />
+                                    </svg>
+                                </a>
+                            </li>
+
+                            <!-- ═══ ADMIN: Avatar dropdown (modern minimalist) — P0: Cleaned role desync ═══ -->
+                            <li class="nav-item dropdown" style="margin-right:12px;">
+                                <a class="nav-link dropdown-toggle fs-avatar-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    @if (!string.IsNullOrEmpty(adminInfo?.hinhanh))
+                                    {
+                                        <img src="@TinhToan.HinhAnhUrl(adminInfo.hinhanh)" width="28" height="28" alt="" style="border-radius:50%;object-fit:cover;" />
+                                    }
+                                    else
+                                    {
+                                        <div style="width:28px;height:28px;border-radius:50%;background:#3CB815;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;">@firstLetter</div>
+                                    }
+                                    <span class="d-none d-lg-inline text-muted small fw-500">@adminName</span>
+                                </a>
+                                <ul class="dropdown-menu dropdown-menu-right fs-dropdown-menu">
+                                    <li><a class="dropdown-item fs-dropdown-item py-2" href="@Url.Action("Dashboard","Admin")"><i class="fas fa-chart-pie" style="color:var(--fs-green);" aria-hidden="true"></i> Dashboard</a></li>
+                                    <li><hr class="dropdown-divider my-1"></li>
+                                    <li><a href="/Home/Logout" class="dropdown-item fs-dropdown-item py-2 text-danger"><i class="fas fa-sign-out-alt" aria-hidden="true"></i> Đăng xuất</a></li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </div>
+                </nav>
+            </div>
+        </div>
+        <!--**********************************
+              Header end ti-comment-alt
+          ***********************************-->
+        <!--**********************************
+              Sidebar start
+          ***********************************-->
+        <div class="deznav" id="adminSidebar">
+            <div class="deznav-toggle" id="sidebarToggle" onclick="toggleAdminSidebar()" title="Thu gọn / Mở rộng"><i class="fas fa-chevron-left"></i></div>
+            <div class="deznav-scroll">
+                <ul class="metismenu" id="menu">
+                   <li>
+                        <a class="has-arrow ai-icon" href="~/Admin/Dashboard" aria-expanded="false">
+                            <span class="nav-text"><i class="fas fa-chart-pie"></i> Dashboard</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a class="has-arrow ai-icon" href="~/Admin/QuanLyQuanAn" aria-expanded="false">
+                            <span class="nav-text"><i class="fas fa-store"></i> Xem quán ăn</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a class="has-arrow ai-icon" href="~/Admin/QuanLyQuanTriVien" aria-expanded="false">
+                            <span class="nav-text"><i class="fas fa-user-shield"></i> Xem admin</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a class="has-arrow ai-icon" href="~/Admin/QuanLyShipper" aria-expanded="false">
+                            <span class="nav-text"><i class="fas fa-truck"></i> Xem tài xế</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a class="has-arrow ai-icon" href="~/Admin/QuanLyKhachHang" aria-expanded="false">
+                            <span class="nav-text"><i class="fas fa-users"></i> Xem khách hàng</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a class="has-arrow ai-icon" href="@Url.Action("Order","Admin")" aria-expanded="false">
+                            <span class="nav-text"><i class="fas fa-clipboard-list"></i> Xem đơn hàng</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a class="has-arrow ai-icon" href="@Url.Action("Category","Admin")" aria-expanded="false">
+                            <span class="nav-text"><i class="fas fa-list"></i> Xem danh mục</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a class="has-arrow ai-icon" href="@Url.Action("VoucherManager","Admin")" aria-expanded="false">
+                            <span class="nav-text"><i class="fas fa-tags"></i> Khuyến mãi</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a class="has-arrow ai-icon" href="@Url.Action("WalletManager","Admin")" aria-expanded="false">
+                            <span class="nav-text"><i class="fas fa-wallet"></i> Ví tiền</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a class="has-arrow ai-icon" href="@Url.Action("Index","AdminChat")" aria-expanded="false">
+                            <span class="nav-text"><i class="fas fa-comments"></i> Chat khách hàng</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a class="has-arrow ai-icon" href="@Url.Action("DeliveryLogs","EDelivery")" aria-expanded="false">
+                            <span class="nav-text"><i class="fas fa-qrcode"></i> Giám sát giao hàng</span>
+                        </a>
+                    </li>
+                </ul>
+
+              
+            </div>
+        </div>
+        <!--**********************************
+              Sidebar end
+          ***********************************-->
+        <!--**********************************
+              Content body start
+          ***********************************-->
+        @RenderBody()
+        <!--**********************************
+              Content body end
+          ***********************************-->
+    </div>
+    <!--**********************************
+        Main wrapper end
+    ***********************************-->
+    <!--**********************************
+        Scripts
+    ***********************************-->
+    <!-- Bootstrap 5.3 JS bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" integrity="sha384-geWF76RCwLtnZ8qwWowPQNguL3RmwHVBC9FhGdlKrxdiJJigb/j/68SIy3Te4Bkz" crossorigin="anonymous"></script>
+    <!-- Required vendors -->
+    <script src="~/Source/Admin/vendor/global/global.min.js"></script>
+    <!-- peity.js for sparkline charts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/peity/3.3.0/jquery.peity.min.js"></script>
+    <script src="~/Source/Admin/vendor/bootstrap-select/dist/js/bootstrap-select.min.js"></script>
+    <script src="~/Source/Admin/vendor/chart.js/Chart.bundle.min.js"></script>
+    <script src="~/Source/Restaurant/js/custom.min.js"></script>
+    <script src="~/Source/Restaurant/js/deznav-init.js"></script>
+
+    <!-- Counter Up -->
+    <script src="~/Source/Admin/vendor/waypoints/jquery.waypoints.min.js"></script>
+    <script src="~/Source/Admin/vendor/jquery.counterup/jquery.counterup.min.js"></script>
+
+    <!-- Apex Chart -->
+    <!-- ═══ Admin sidebar toggle (collapse/expand) — lưu state vào localStorage ═══ -->
+    <script>
+    (function() {
+        var sidebar = document.getElementById('adminSidebar');
+        var toggle = document.getElementById('sidebarToggle');
+        // Khôi phục state từ localStorage
+        if (sidebar && localStorage.getItem('adminSidebarCollapsed') === 'true') {
+            sidebar.classList.add('deznav-collapsed');
+            if (toggle) toggle.querySelector('i').className = 'fas fa-chevron-right';
+        }
+    })();
+    function toggleAdminSidebar() {
+        var sidebar = document.getElementById('adminSidebar');
+        var toggleBtn = document.getElementById('sidebarToggle');
+        if (!sidebar) return;
+        sidebar.classList.toggle('deznav-collapsed');
+        var collapsed = sidebar.classList.contains('deznav-collapsed');
+        localStorage.setItem('adminSidebarCollapsed', collapsed);
+        if (toggleBtn) {
+            var icon = toggleBtn.querySelector('i');
+            if (icon) icon.className = collapsed ? 'fas fa-chevron-right' : 'fas fa-chevron-left';
+        }
+    }
+    </script>
+    @RenderSection("Scripts", required: false)
+<script>
+    // ═══ Chặn back button hiển thị trang khách hàng (bfcache) — reload để RoleGuard redirect về đúng role ═══
+    window.addEventListener('pageshow', function (e) {
+        if (e.persisted) { window.location.reload(); }
+    });
+</script>
+</body>
+</html>

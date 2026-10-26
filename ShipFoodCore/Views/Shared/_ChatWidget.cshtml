@@ -1,0 +1,717 @@
+@{
+    var userJson = Context.Session.GetString("user");
+    ShipFood.Models.tbUser? user = userJson != null ? JsonSerializer.Deserialize<tbUser>(userJson) : null;
+    var loggedIn = user != null && user.userid > 0;
+}
+
+<style>
+.chat-toggle {
+    position: fixed; bottom: 24px; right: 24px; z-index: 9999;
+    width: 56px; height: 56px; border-radius: 50%;
+    background: var(--fs-green, #3CB815); color: #fff; border: none; cursor: pointer;
+    box-shadow: 0 4px 16px rgba(60,184,21,0.35);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px; transition: transform .2s, box-shadow .2s;
+    font-family: var(--fs-font, 'Inter', sans-serif);
+}
+.chat-toggle:hover { transform: scale(1.08); box-shadow: 0 6px 24px rgba(60,184,21,0.45); }
+.chat-toggle:active { transform: scale(0.94); }
+.chat-toggle .badge {
+    position: absolute; top: -4px; right: -4px;
+    background: #e74c3c; color: #fff; border-radius: 50%;
+    width: 20px; height: 20px; font-size: 11px; display: flex;
+    align-items: center; justify-content: center; border: 2px solid #fff;
+}
+
+.chat-box {
+    position: fixed; bottom: 96px; right: 24px; z-index: 9998;
+    width: 380px; max-height: 560px; background: #fff;
+    border-radius: var(--fs-radius, 12px); box-shadow: 0 8px 40px rgba(0,0,0,0.12);
+    flex-direction: column; overflow: hidden;
+    font-family: var(--fs-font, 'Inter', sans-serif);
+    display: none;
+}
+@@media (max-width: 480px) {
+    .chat-box { width: calc(100vw - 32px); right: 16px; bottom: 80px; max-height: 70vh; }
+    .chat-toggle { bottom: 16px; right: 16px; width: 48px; height: 48px; font-size: 20px; }
+    .chat-msgs { min-height: 160px; max-height: 40vh; }
+}
+.chat-box.active {
+    display: flex;
+}
+
+.chat-box-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 16px;
+    background: linear-gradient(135deg, var(--fs-green, #3CB815), var(--fs-green-dark, #2ea310));
+    color: #fff;
+}
+.chat-box-header h6 { margin: 0; font-size: 14px; font-weight: 600; font-family: var(--fs-font, 'Inter', sans-serif); }
+.chat-box-header small { font-size: 11px; opacity: .8; font-family: var(--fs-font, 'Inter', sans-serif); }
+.chat-box-header .close-btn { cursor: pointer; font-size: 20px; opacity: .7; transition: opacity .15s; }
+.chat-box-header .close-btn:hover { opacity: 1; }
+
+.chat-tabs {
+    display: flex; background: var(--fs-light, #f8f9fa); border-bottom: 1px solid var(--fs-border, #e5e7eb);
+}
+.chat-tab {
+    flex: 1; padding: 10px; text-align: center; cursor: pointer;
+    font-size: 13px; font-weight: 500; color: var(--fs-muted, #6b7280);
+    border-bottom: 2px solid transparent; transition: all .2s;
+    background: none; border-top: 0; border-left: 0; border-right: 0; position: relative;
+    font-family: var(--fs-font, 'Inter', sans-serif);
+}
+.chat-tab:hover { color: var(--fs-dark, #1a1a2e); }
+.chat-tab.active { color: var(--fs-green, #3CB815); border-bottom-color: var(--fs-green, #3CB815); background: #fff; }
+.chat-tab .tab-badge {
+    position: absolute; top: 4px; right: 20%;
+    background: #e74c3c; color: #fff; border-radius: 50%;
+    width: 18px; height: 18px; font-size: 10px; display: none;
+    align-items: center; justify-content: center; font-weight: 600;
+}
+.chat-tab .tab-badge.show { display: flex; }
+
+.chat-section { display: none; flex-direction: column; flex: 1; }
+.chat-section.active { display: flex; }
+
+.chat-msgs {
+    flex: 1; overflow-y: auto; padding: 12px 14px;
+    background: var(--fs-light-soft, #f3f4f6); min-height: 200px; max-height: 340px;
+}
+@@media (max-width: 480px) {
+    .chat-msgs { min-height: 160px; max-height: 40vh; }
+}
+.chat-msgs::-webkit-scrollbar { width: 4px; }
+.chat-msgs::-webkit-scrollbar-thumb { background: rgba(0,0,0,.12); border-radius: 4px; }
+.chat-msgs .msg {
+    margin-bottom: 8px; max-width: 88%;
+    padding: 8px 12px; border-radius: 12px;
+    font-size: 13px; line-height: 1.5; word-wrap: break-word;
+    font-family: var(--fs-font, 'Inter', sans-serif);
+}
+.chat-msgs .msg.bot, .chat-msgs .msg.admin {
+    background: #fff; border: 1px solid var(--fs-border, #e5e7eb);
+    margin-right: auto; color: var(--fs-dark, #1a1a2e);
+}
+.chat-msgs .msg.user, .chat-msgs .msg.customer {
+    background: var(--fs-green, #3CB815); color: #fff; margin-left: auto;
+}
+.chat-msgs .msg .label {
+    font-size: 10px; opacity: .65; display: block; margin-bottom: 2px;
+}
+/* 🔵 FIX Bug #14: Phân biệt auto-message (system) vs real message */
+.chat-msgs .msg.system {
+    background: #fef9e7; border: 1px solid #fdebd0;
+    margin: 4px auto; max-width: 75%; text-align: center;
+    font-size: 11px; color: #6b7280; border-radius: 8px;
+}
+.chat-msgs .msg.system .label {
+    color: #f39c12; font-size: 9px; text-transform: uppercase;
+    letter-spacing: 0.5px; font-weight: 600; opacity: 0.8;
+}
+.chat-msgs .msg .quick-btn {
+    display: inline-block; padding: 4px 10px; margin: 2px;
+    background: var(--fs-green-bg, rgba(60,184,21,.07)); color: var(--fs-green, #3CB815);
+    border: 1px solid rgba(60,184,21,.2); border-radius: 16px; cursor: pointer;
+    font-size: 11px; font-weight: 500; transition: all .15s;
+}
+.chat-msgs .msg .quick-btn:hover { background: var(--fs-green, #3CB815); color: #fff; }
+.chat-msgs .msg .msg-time {
+    font-size: 10px; color: var(--fs-muted-soft, #9ca3af); margin-top: 4px; display: block;
+}
+.chat-msgs .msg.customer .msg-time { color: rgba(255,255,255,0.6); }
+
+.chat-input {
+    display: flex; padding: 10px 12px; background: #fff;
+    border-top: 1px solid var(--fs-border, #e5e7eb); gap: 6px;
+}
+.chat-input input {
+    flex: 1; border: 1.5px solid var(--fs-border, #e5e7eb); border-radius: 20px;
+    padding: 8px 14px; outline: none; font-size: 13px;
+    font-family: var(--fs-font, 'Inter', sans-serif);
+    transition: border-color .2s;
+}
+.chat-input input:focus { border-color: var(--fs-green, #3CB815); }
+.chat-input button {
+    background: var(--fs-green, #3CB815); color: #fff; border: none;
+    border-radius: 50%; width: 36px; height: 36px;
+    cursor: pointer; display: flex; align-items: center;
+    justify-content: center; font-size: 13px; flex-shrink: 0;
+    transition: background .2s;
+}
+.chat-input button:hover { background: var(--fs-green-dark, #2ea310); }
+.chat-input button:disabled { background: var(--fs-muted-soft, #9ca3af); cursor: default; }
+
+.chat-typing {
+    display: flex; gap: 4px; padding: 8px 12px; background: #fff;
+    border-radius: 12px; border: 1px solid var(--fs-border, #e5e7eb);
+    margin-bottom: 8px; width: fit-content;
+}
+.chat-typing span {
+    width: 6px; height: 6px; background: var(--fs-green, #3CB815); border-radius: 50%;
+    animation: fsTyping 1.4s infinite ease-in-out;
+}
+.chat-typing span:nth-child(2) { animation-delay: .2s; }
+.chat-typing span:nth-child(3) { animation-delay: .4s; }
+@@keyframes fsTyping {
+    0%,60%,100% { opacity: .3; transform: scale(.8); }
+    30% { opacity: 1; transform: scale(1.1); }
+}
+
+.chat-login-msg {
+    text-align: center; padding: 30px 16px; color: var(--fs-muted-soft, #9ca3af); font-size: 14px;
+    font-family: var(--fs-font, 'Inter', sans-serif);
+}
+.chat-login-msg a { color: var(--fs-green, #3CB815); font-weight: 600; }
+
+.admin-order-select {
+    padding: 8px 12px; background: var(--fs-light, #f8f9fa); border-bottom: 1px solid var(--fs-border, #e5e7eb);
+}
+.admin-order-select select {
+    width: 100%; padding: 6px 10px; border: 1.5px solid var(--fs-border, #e5e7eb);
+    border-radius: 8px; font-size: 12px; outline: none;
+    font-family: var(--fs-font, 'Inter', sans-serif);
+    transition: border-color .2s;
+}
+.admin-order-select select:focus { border-color: var(--fs-green, #3CB815); }
+.admin-status {
+    padding: 4px 12px; font-size: 11px; color: var(--fs-muted, #6b7280);
+    background: var(--fs-green-bg, rgba(60,184,21,.07)); border-bottom: 1px solid var(--fs-border, #e5e7eb);
+    display: flex; align-items: center; gap: 6px;
+}
+.admin-status .dot {
+    width: 6px; height: 6px; background: var(--fs-green, #3CB815); border-radius: 50%;
+    display: inline-block; animation: fsPulse 1.5s infinite;
+}
+@@keyframes fsPulse {
+    0%,100% { opacity: 1; }
+    50% { opacity: .4; }
+}
+</style>
+
+<button class="chat-toggle" id="chatToggle" aria-label="Mở chat hỗ trợ FastShip" title="Chat hỗ trợ">
+    <i class="fas fa-comment-dots" aria-hidden="true"></i>
+    <span class="badge" id="chatBadge" style="display:none;" aria-hidden="true">0</span>
+</button>
+
+<div class="chat-box" id="chatBox">
+    <div class="chat-box-header">
+        <div>
+            <h6><i class="fas fa-comment me-1"></i>FastShip</h6>
+            <small>Trực tuyến 24/7</small>
+        </div>
+        <span class="close-btn close-chat">&times;</span>
+    </div>
+
+    <div class="chat-tabs">
+        <button class="chat-tab active" id="tabAi" onclick="switchTab('ai')">AI Chat</button>
+        @if (loggedIn) {
+            <button class="chat-tab" id="tabAdmin" onclick="switchTab('admin')">
+                Hỗ trợ
+                <span class="tab-badge" id="adminTabBadge">0</span>
+            </button>
+        }
+    </div>
+
+    <!-- AI Status Indicator -->
+    <div class="ai-status" id="aiStatus" style="display:none;padding:6px 14px;font-size:11px;background:#fefce8;border-bottom:1px solid #fde68a;color:#92400e;">
+        <span class="ai-status-dot" style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#f59e0b;margin-right:6px;animation:fsPulse 1.5s infinite;"></span>
+        <span id="aiStatusText">Đang kết nối AI...</span>
+    </div>
+    <!-- AI Chat -->
+    <div class="chat-section active" id="sectionAi">
+        <div class="chat-msgs" id="aiMsgs">
+            <div class="msg bot">👋 Chào bạn! Tôi là trợ lý FastShip. Có thể giúp gì cho bạn?</div>
+        </div>
+        <div class="chat-input">
+            @Html.AntiForgeryToken()
+            <input type="text" id="aiInput" placeholder="Nhập tin nhắn..." onkeypress="if(event.key==='Enter') sendAi()" />
+            <button id="aiBtn" onclick="sendAi()"><i class="fas fa-paper-plane"></i></button>
+        </div>
+    </div>
+
+    <!-- Admin Chat -->
+    <div class="chat-section" id="sectionAdmin">
+        @if (loggedIn) {
+            <div class="admin-status">
+                <span class="dot"></span> Đã kết nối với hỗ trợ viên
+            </div>
+            <div class="admin-order-select">
+                <select id="adminOrderSelect" onchange="joinAdminChat()">
+                    <option value="0">-- Yêu cầu hỗ trợ chung --</option>
+                </select>
+            </div>
+            <div class="chat-msgs" id="adminMsgs">
+                <div class="msg admin"><span class="label">FastShip</span>Chào bạn! Chọn đơn hàng hoặc gửi yêu cầu chung, admin sẽ trả lời sớm.</div>
+            </div>
+            <div class="chat-input">
+                <input type="text" id="adminInput" placeholder="Nhập tin nhắn..." onkeypress="if(event.key==='Enter') sendAdmin()" />
+                <button id="adminBtn" onclick="sendAdmin()"><i class="fas fa-paper-plane"></i></button>
+            </div>
+        } else {
+            <div class="chat-login-msg">
+                <i class="fas fa-lock" style="font-size:28px;opacity:.25;margin-bottom:10px"></i><br/>
+                <a href="~/Home/Login">Đăng nhập</a> để chat với hỗ trợ viên
+            </div>
+        }
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+<script>if(typeof signalR==='undefined'){var s=document.createElement('script');s.src='https://unpkg.com/@@microsoft/signalr@@8.0.0/dist/browser/signalr.min.js';document.body.appendChild(s);console.warn('SignalR CDN fallback loaded from unpkg');}</script>
+<script>
+    var currentTab = 'ai';
+    function switchTab(tab) {
+        currentTab = tab;
+        document.querySelectorAll('.chat-tab').forEach(function(t){t.classList.remove('active');});
+        document.querySelectorAll('.chat-section').forEach(function(s){s.classList.remove('active');});
+        document.getElementById('tab' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('active');
+        document.getElementById('section' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('active');
+        
+        if (tab === 'admin') {
+            // Clear badge khi mở tab admin
+            document.getElementById('adminTabBadge').classList.remove('show');
+            document.getElementById('adminTabBadge').textContent = '0';
+            // Load l?ch s? tin nh?n
+            loadMyMessages();
+        } else if (tab === 'ai') {
+            // Load l?ch s? h?i tho?i AI t? session
+            loadAiHistory();
+        }
+    }
+
+    // ─── Load AI chat history from session ───
+    function loadAiHistory() {
+        $.ajax({
+            url: '@Url.Action("GetAiHistory", "Chatbot")', type: 'GET',
+            xhrFields: { withCredentials: true },
+            success: function(res) {
+                if (!res.success || !res.history || res.history.length === 0) return;
+                var container = document.getElementById('aiMsgs');
+                // Ch? load n?u ch?a có tin nh?n nào (gi? message chào)
+                if (container.children.length > 1) return;
+                container.innerHTML = '';
+                res.history.forEach(function(msg) {
+                    var d = document.createElement('div'); d.className = 'msg ' + (msg.role === 'user' ? 'user' : 'bot');
+                    d.innerHTML = escHtml(msg.content).replace(/\n/g, '<br/>');
+                    container.appendChild(d);
+                });
+                container.scrollTop = container.scrollHeight;
+            }
+        });
+    }
+
+    // ─── Pre-warm: G?i /health khi load trang d? ?ánh th?c Render ───
+    // Render free tier sleep sau 15 phút, fetch ngay d? app k?p wake up
+    // tr??c khi user click vào chatbot, tránh timeout ? l?n chat d?u
+    function prewarmApp() {
+        fetch('/health', { method: 'GET', cache: 'no-store' })
+            .then(function(r) { if (r.ok) console.log('⚡ App warmed', new Date().toLocaleTimeString()); })
+            .catch(function() { console.log('⏳ Warming up...'); });
+    }
+
+    // ─── Ki?m tra tr?ng thái AI (lightweight, ko t?n credits, ko pollute history) ───
+    function checkAiStatus() {
+        var statusEl = document.getElementById('aiStatus');
+        var statusText = document.getElementById('aiStatusText');
+        if (!statusEl) return;
+        statusEl.style.display = 'block';
+        statusText.textContent = 'Đang kiểm tra kết nối AI...';
+        $.ajax({
+            url: '@Url.Action("Status", "Chatbot")', type: 'GET',
+            xhrFields: { withCredentials: true },
+            timeout: 8000,
+            success: function(r) {
+                if (r.configured) {
+                    statusEl.style.background = '#f0fdf4'; statusEl.style.borderColor = '#86efac'; statusEl.style.color = '#166534';
+                    statusText.textContent = 'AI sẵn sàng';
+                    statusEl.querySelector('.ai-status-dot').style.background = '#22c55e';
+                    setTimeout(function() { statusEl.style.display = 'none'; }, 3000);
+                } else {
+                    statusEl.style.background = '#fef2f2'; statusEl.style.borderColor = '#fca5a5'; statusEl.style.color = '#991b1b';
+                    statusText.textContent = 'AI chưa được cấu hình — liên hệ quản trị viên';
+                    statusEl.querySelector('.ai-status-dot').style.background = '#ef4444';
+                }
+            },
+            error: function() {
+                statusEl.style.background = '#fef2f2'; statusEl.style.borderColor = '#fca5a5'; statusEl.style.color = '#991b1b';
+                statusText.textContent = 'AI tạm thời không khả dụng — thử lại sau';
+                statusEl.querySelector('.ai-status-dot').style.background = '#ef4444';
+            }
+        });
+    }
+
+    // ─── SỬA DỨT ĐIỂM LỖI KẸT CHAT: Event Delegation + class .active ───
+    $(document).ready(function() {
+        prewarmApp(); // ?ánh th?c Render ngay khi load trang
+        checkAiStatus(); // Ki?m tra k?t n?i AI
+        loadAiHistory(); // Tự động load lịch sử AI khi mở trang
+
+        // Dùng event delegation trên document để bọc toàn bộ
+        $(document).on('click', '.chat-toggle', function(e) {
+            e.stopPropagation();
+            $('#chatBox').addClass('active');
+            $(this).fadeOut(100);
+            // Clear badge
+            var badge = document.getElementById('chatBadge');
+            if (badge) badge.style.display = 'none';
+            if (currentTab === 'admin') {
+                var adminBadge = document.getElementById('adminTabBadge');
+                if (adminBadge) { adminBadge.classList.remove('show'); adminBadge.textContent = '0'; }
+            }
+        });
+
+        $(document).on('click', '.close-chat, .chat-box-header .close-btn', function(e) {
+            e.stopPropagation();
+            $('#chatBox').removeClass('active');
+            $('.chat-toggle').fadeIn(100);
+        });
+
+        // Click outside chat box → đóng (trừ khi click vào toggle)
+        $(document).on('click', function(e) {
+            var $box = $('#chatBox');
+            if (!$box.hasClass('active')) return;
+            var $toggle = $('.chat-toggle');
+            if (!$box[0].contains(e.target) && !$toggle[0].contains(e.target)) {
+                $box.removeClass('active');
+                $toggle.fadeIn(100);
+            }
+        });
+    });
+
+    // ====== AI Chat ======
+    function getToken() { return $('input[name="__RequestVerificationToken"]').val(); }
+
+    function sendAi() {
+        var input = document.getElementById('aiInput');
+        var msg = input.value.trim();
+        if (!msg) return;
+        addMsg('aiMsgs', msg, 'user');
+        input.value = '';
+        document.getElementById('aiBtn').disabled = true;
+        showTyping('aiMsgs');
+        $.ajax({
+            url: '@Url.Action("SendMessage", "Chatbot")', type: 'POST', data: { message: msg },
+            xhrFields: { withCredentials: true },
+            headers: { 'RequestVerificationToken': getToken() },
+            success: function(r) { hideTyping(); addBotMsg(r.reply, r.quickReplies); },
+            error: function(xhr) {
+                hideTyping();
+                var errMsg = '❌ Lỗi kết nối. Vui lòng thử lại.';
+                try { var r = JSON.parse(xhr.responseText); if (r && (r.message || r.error)) errMsg = '❌ ' + (r.message || r.error); } catch(e){}
+                if (xhr.status === 0) { errMsg = '❌ Mất kết nối mạng. Vui lòng kiểm tra internet.'; }
+                if (xhr.status === 401) { errMsg = '❌ Phiên đăng nhập hết hạn. Vui lòng tải lại trang.'; }
+                if (xhr.status === 429) { errMsg = '⚠️ Bạn đã gửi quá nhiều tin nhắn. Vui lòng chờ 1 phút.'; }
+                if (xhr.status === 504) { errMsg = '⏱️ Hệ thống AI phản hồi chậm. Vui lòng thử lại sau vài giây.'; }
+                // Thêm nút th? l?i
+                addMsg('aiMsgs', errMsg, 'bot');
+                addRetryButton(msg);
+            },
+            complete: function() { document.getElementById('aiBtn').disabled = false; }
+        });
+    }
+
+    // 🔵 FIX Bug #14: Thêm senderType 'system' cho auto-messages
+    function addMsg(containerId, text, senderType, quickReplies) {
+        var c = document.getElementById(containerId);
+        if (!c) return;
+        var cssClass = senderType;
+        if (senderType === 'shipper') cssClass = 'admin'; // fallback về admin style
+        var d = document.createElement('div'); d.className = 'msg ' + cssClass;
+        var time = new Date().toLocaleTimeString('vi-VN', {hour:'2-digit',minute:'2-digit'});
+        
+        if (senderType === 'system') {
+            // Auto-message: icon + background vàng nhạt, căn giữa
+            d.innerHTML = '<span class="label">📢 Hệ thống</span>' + escHtml(text).replace(/\n/g, '<br/>') + '<span class="msg-time">' + time + '</span>';
+        } else if (senderType === 'admin') {
+            d.innerHTML = '<span class="label">FastShip</span>' + escHtml(text).replace(/\n/g, '<br/>') + '<span class="msg-time">' + time + '</span>';
+        } else if (senderType === 'shipper') {
+            d.innerHTML = '<span class="label" style="background:#f97316;color:#fff;">Shipper</span>' + escHtml(text).replace(/\n/g, '<br/>') + '<span class="msg-time">' + time + '</span>';
+        } else {
+            d.innerHTML = escHtml(text).replace(/\n/g, '<br/>') + '<span class="msg-time">' + time + '</span>';
+        }
+        c.appendChild(d); c.scrollTop = c.scrollHeight;
+    }
+
+    function addBotMsg(text, quickReplies) {
+        hideTyping();
+        var c = document.getElementById('aiMsgs');
+        var d = document.createElement('div'); d.className = 'msg bot';
+        var formatted = escHtml(text).replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br/>');
+        d.innerHTML = formatted;
+        if (quickReplies && quickReplies.length) {
+            var wrap = document.createElement('div'); wrap.style.marginTop = '6px';
+            quickReplies.forEach(function(q){
+                var b = document.createElement('span'); b.className = 'quick-btn';
+                b.textContent = q; b.onclick = function(){ document.getElementById('aiInput').value=q; sendAi(); };
+                wrap.appendChild(b);
+            });
+            d.appendChild(wrap);
+        }
+        c.appendChild(d); c.scrollTop = c.scrollHeight;
+    }
+
+    function showTyping(containerId) {
+        var c = document.getElementById(containerId);
+        var d = document.createElement('div'); d.className = 'chat-typing'; d.id = 'typing';
+        for (var i=0;i<3;i++) d.appendChild(document.createElement('span'));
+        c.appendChild(d); c.scrollTop = c.scrollHeight;
+    }
+    function hideTyping() { var e = document.getElementById('typing'); if(e) e.remove(); }
+
+    // ====== Admin Chat ======
+    var adminConn = null, adminUserId = @(loggedIn ? user!.userid : 0), adminOrderId = 0, adminConnPromise = null;
+    var adminName = '@(loggedIn ? user!.username : "")';
+
+    @if (loggedIn) {
+    <text>
+    $.ajax({
+        url: '@Url.Action("GetUserOrders", "AdminChat")', type: 'GET',
+        xhrFields: { withCredentials: true },
+        success: function(orders) {
+            var sel = document.getElementById('adminOrderSelect');
+            if (orders && orders.length) orders.forEach(function(o){
+                var opt = document.createElement('option'); opt.value = o.madh;
+                opt.textContent = '#' + o.madh + ' - ' + (o.tenquanan || '') + ' - ' + (o.tongtien ? Number(o.tongtien).toLocaleString() : '0') + 'đ';
+                sel.appendChild(opt);
+            });
+        }
+    });
+
+    // ponytail: Fix #3 — k?t n?i SignalR ngay khi load trang, ko ch? khi b?m tab "H? tr?
+    // ?? admin có th? g?i tin cho customer dù user dang ? tab AI
+    connectAdmin().catch(function(e){ console.warn('SignalR early connect failed:', e); });
+
+    // L?ng nghe s? ki?n unreadCountUpdate real-time t? SignalR hub
+    // (listener ???c d?ng ký trong connectAdmin() d??i dây, sau khi adminConn ???c kh?i t?o)
+    // Check l?n ??u khi load (AJAX, không c?n SignalR)
+    initUnreadCheck();
+    </text>
+    }
+
+    // Hàm hi?n badge khi có tin nh?n m?i (tách riêng ?? tái s? d?ng)
+    function showMsgBadge() {
+        if (currentTab !== 'admin') {
+            var badge = document.getElementById('adminTabBadge');
+            var cur = parseInt(badge.textContent) || 0;
+            badge.textContent = cur + 1 > 9 ? '9+' : cur + 1;
+            badge.classList.add('show');
+            document.getElementById('chatBadge').textContent = cur + 1 > 9 ? '9+' : cur + 1;
+            document.getElementById('chatBadge').style.display = 'flex';
+        }
+    }
+
+    function updateBadgeCount(count) {
+        count = count || 0;
+        if (currentTab !== 'admin' && count > 0) {
+            document.getElementById('adminTabBadge').textContent = count > 9 ? '9+' : count;
+            document.getElementById('adminTabBadge').classList.add('show');
+            document.getElementById('chatBadge').textContent = count > 9 ? '9+' : count;
+            document.getElementById('chatBadge').style.display = 'flex';
+        }
+    }
+
+    // Hàm ki?m tra l?n ??u (không dùng polling)
+    function initUnreadCheck() {
+        if (adminUserId <= 0) return;
+        $.ajax({
+            url: '@Url.Action("GetUnreadCount", "AdminChat")', type: 'GET',
+            xhrFields: { withCredentials: true },
+            success: function(res) { updateBadgeCount(res.count || 0); }
+        });
+    }
+    window.initUnreadCheck = initUnreadCheck;
+
+    function connectAdmin() {
+        if (adminConn && adminConn.state === 'Connected') return Promise.resolve();
+        if (adminConnPromise) return adminConnPromise;
+        // ponytail: pass userId để OnConnectedAsync có thể tracking connection
+        if (typeof signalR === 'undefined') {
+            console.error('SignalR library not loaded');
+            addMsg('adminMsgs', '❌ Không thể kết nối chat do thiếu thư viện SignalR. Vui lòng tải lại trang.', 'admin');
+            return Promise.reject('SignalR not loaded');
+        }
+        adminConn = new signalR.HubConnectionBuilder().withUrl('/nhantin?userId=' + adminUserId).withAutomaticReconnect().build();
+
+        // ═══ Nh?n tin nh?n t? Admin ═══
+        // ═══ Nh?n tin nh?n t? Admin ═══
+        adminConn.on('adminMessage', function(msg, orderId, sender) {
+            if (orderId === adminOrderId || adminOrderId === 0) {
+                addMsg('adminMsgs', msg, 'admin');
+            }
+            showMsgBadge();
+        });
+
+        // ═══ Nh?n tin nh?n tr?c ti?p t? Shipper (qua SendDirectMessage) ═══
+        adminConn.on('directMessage', function(msg, senderName, senderRole, connId) {
+            if (senderRole === 'Shipper') {
+                addMsg('adminMsgs', '📦 [Ship] ' + (senderName || 'Shipper') + ': ' + msg, 'admin');
+            } else {
+                addMsg('adminMsgs', msg, 'admin');
+            }
+            showMsgBadge();
+        });
+
+        // ═══ Nh?n tin nh?n t? Shipper (qua CustomerSendMessage API) ═══
+        adminConn.on('shipperMessage', function(msg, orderId, senderName, shipperId) {
+            if (orderId === adminOrderId || adminOrderId === 0) {
+                addMsg('adminMsgs', '📦 ' + (senderName || 'Shipper') + ': ' + msg, 'admin');
+            }
+            showMsgBadge();
+        });
+
+        // ═══ Nh?n tin nh?n t? Customer (echo t? API) — b? qua tin c?a chính mình tránh double ═══
+        adminConn.on('customerMessage', function(msg, orderId, senderName, customerId) {
+            if (customerId === adminUserId) return; // tin c?a chính mình, ?ã hi?n local r?i
+            if (orderId === adminOrderId || adminOrderId === 0) {
+                addMsg('adminMsgs', msg, 'customer');
+            }
+        });
+
+        // ═══ C?p nh?t s? tin ch?a ??c ═══
+        adminConn.on('unreadCountUpdate', function(count) {
+            updateBadgeCount(count);
+        });
+
+        adminConn.onclose(function(){ adminConnPromise = null; });
+        adminConn.onreconnected(function(){ rejoinAdminGroup(); });
+
+        adminConnPromise = adminConn.start().then(function(){
+            return adminConn.invoke('JoinCustomerSupportGroup', adminUserId);
+        }).then(function(){
+            if (adminOrderId > 0) return adminConn.invoke('JoinOrderGroup', adminOrderId);
+        }).catch(function(){});
+        return adminConnPromise;
+    }
+
+    function rejoinAdminGroup() {
+        if (!adminConn || adminConn.state !== 'Connected') return;
+        // ponytail: customer chi join customer_{userId} + order groups, KHONG join admin groups
+        adminConn.invoke('JoinCustomerSupportGroup', adminUserId).catch(function(){});
+        if (adminOrderId > 0) adminConn.invoke('JoinOrderGroup', adminOrderId).catch(function(){});
+    }
+
+    function loadMyMessages() {
+        if (adminUserId <= 0) return;
+        $.ajax({
+            url: '@Url.Action("GetMyMessages", "AdminChat")', type: 'GET',
+            data: { orderId: adminOrderId },
+            xhrFields: { withCredentials: true },
+            success: function(res) {
+                if (!res.success) return;
+                var container = document.getElementById('adminMsgs');
+                container.innerHTML = '';
+                if (!res.data || res.data.length === 0) {
+                    addMsg('adminMsgs', adminOrderId > 0
+                        ? '📦 Đang hỗ trợ đơn #' + adminOrderId + '. Admin sẽ trả lời sớm!'
+                        : '💬 Gửi yêu cầu hỗ trợ chung. Admin sẽ trả lời sớm!', 'admin');
+                } else {
+                    res.data.forEach(function(msg) {
+                        // 🔵 FIX Bug #14: Phân biệt auto-message (system) vs real message
+                        var isSystem = msg.isSystem || msg.sender === 'Hệ thống' || msg.sender === 'System' || !msg.sender;
+                        if (isSystem) {
+                            addMsg('adminMsgs', msg.content, 'system');
+                        } else if (msg.sender === "Khách hàng") {
+                            addMsg('adminMsgs', msg.content, 'user');
+                        } else if (msg.sender === "Shipper") {
+                            addMsg('adminMsgs', msg.content, 'shipper');
+                        } else {
+                            addMsg('adminMsgs', msg.content, 'admin');
+                        }
+                    });
+                    container.scrollTop = container.scrollHeight;
+                }
+            }
+        });
+    }
+
+    function joinAdminChat() {
+        var sel = document.getElementById('adminOrderSelect');
+        adminOrderId = parseInt(sel.value);
+        if (adminConn) {
+            (function retry(){
+                if (adminConn.state === 'Connected') {
+                    adminConn.invoke('JoinCustomerSupportGroup', adminUserId).catch(function(err){ console.error('JoinCustomerSupportGroup failed:', err); });
+                    if (adminOrderId > 0) adminConn.invoke('JoinOrderGroup', adminOrderId).catch(function(err){ console.error('JoinOrderGroup failed:', err); });
+                } else setTimeout(retry, 500);
+            })();
+        } else {
+            // T? ??ng k?t n?i n?u ch?a có
+            connectAdmin().catch(function(){});
+        }
+        // Load l?ch s? tin nh?n cho order ?ã ch?n
+        loadMyMessages();
+    }
+
+    function sendAdmin() {
+        var input = document.getElementById('adminInput');
+        var msg = input.value.trim();
+        if (!msg) return;
+        
+        // Hi?n th? tin nh?n ngay l?p t?c
+        var c = document.getElementById('adminMsgs');
+        var d = document.createElement('div'); d.className = 'msg customer';
+        var time = new Date().toLocaleTimeString('vi-VN', {hour:'2-digit',minute:'2-digit'});
+        d.innerHTML = '<span class="label">Bạn</span>' + escHtml(msg).replace(/\n/g, '<br/>') + '<span class="msg-time">' + time + '</span>';
+        c.appendChild(d); c.scrollTop = c.scrollHeight;
+        
+        input.value = ''; document.getElementById('adminBtn').disabled = true;
+        
+        var token = getToken();
+        $.ajax({
+            url: '@Url.Action("CustomerSendMessage", "AdminChat")', type: 'POST',
+            data: { orderId: adminOrderId, message: msg, __RequestVerificationToken: token },
+            xhrFields: { withCredentials: true },
+            headers: { 'RequestVerificationToken': token },
+            success: function(r) {
+                if (r && r.success === false) {
+                    addMsg('adminMsgs', '⚠️ ' + (r.error || 'Không gửi được tin nhắn'), 'admin');
+                    // N?u l?i login — redirect v? login sau 2 giây
+                    if (r.error && r.error.includes('đăng nhập')) {
+                        setTimeout(function() {
+                            window.location.href = '@Url.Action("Login", "Home")?returnUrl=' + encodeURIComponent(window.location.pathname);
+                        }, 2000);
+                    }
+                }
+            },
+            error: function(xhr) {
+                var errMsg = '❌ Lỗi gửi tin nhắn';
+                try { var r = JSON.parse(xhr.responseText); if (r && (r.error || r.message)) errMsg = '❌ ' + (r.error || r.message); } catch(e){}
+                if (xhr.status === 401) {
+                    errMsg = '❌ Phiên đăng nhập hết hạn. Đang chuyển hướng...';
+                    addMsg('adminMsgs', errMsg, 'admin');
+                    setTimeout(function() {
+                        window.location.href = '@Url.Action("Login", "Home")?returnUrl=' + encodeURIComponent(window.location.pathname);
+                    }, 1500);
+                    return;
+                }
+                if (xhr.status === 403) {
+                    errMsg = '❌ Bạn không có quyền thực hiện thao tác này.';
+                    addMsg('adminMsgs', errMsg, 'admin');
+                    return;
+                }
+                if (xhr.status === 0) errMsg = '❌ Mất kết nối mạng.';
+                addMsg('adminMsgs', errMsg, 'admin');
+            },
+            complete: function(){ document.getElementById('adminBtn').disabled = false; }
+        });
+    }
+
+    function addRetryButton(lastMsg) {
+        var c = document.getElementById('aiMsgs');
+        var wrap = document.createElement('div'); wrap.style.cssText = 'text-align:center;margin-bottom:8px;';
+        var btn = document.createElement('button'); btn.className = 'quick-btn';
+        btn.innerHTML = '🔄 Thử lại';
+        btn.onclick = function(){
+            document.getElementById('aiInput').value = lastMsg;
+            sendAi();
+        };
+        wrap.appendChild(btn);
+        c.appendChild(wrap); c.scrollTop = c.scrollHeight;
+    }
+
+    function escHtml(str) {
+        if (!str) return '';
+        var d = document.createElement('div'); d.textContent = str; return d.innerHTML;
+    }
+</script>

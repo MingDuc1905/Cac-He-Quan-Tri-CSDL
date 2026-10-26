@@ -1,0 +1,507 @@
+@model List<ShipFood.Models.DonHangDangLam>
+@{
+    ViewBag.Title = "Dashboard";
+    Layout = "~/Views/Shared/_LayoutPageShipper.cshtml";
+    var shipper = ViewBag.ShipperInfo as ShipFood.Models.tbShipper;
+    var todayIncome = ViewBag.TodayIncome ?? 0;
+    var todayOrders = ViewBag.TodayOrders ?? 0;
+    var myOrders = ViewBag.MyOrders as List<ShipFood.Models.tbDonHang> ?? new();
+}
+
+<style>
+    /* ── Split-screen layout ── */
+    .shipper-split {
+        display: grid;
+        grid-template-columns: 380px 1fr;
+        gap: 24px;
+        padding: 24px;
+        max-width: 1440px;
+        margin: 0 auto;
+        min-height: calc(100vh - 100px);
+    }
+    @@media (max-width: 1024px) {
+        .shipper-split { grid-template-columns: 1fr; }
+    }
+
+    /* ── Left Panel ── */
+    .left-panel { display: flex; flex-direction: column; gap: 20px; }
+    .profile-card {
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        border-radius: 16px;
+        padding: 24px;
+        color: white;
+        position: relative;
+        overflow: hidden;
+    }
+    .profile-card::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(60,184,21,.08) 0%, transparent 60%);
+        pointer-events: none;
+    }
+    .profile-avatar {
+        width: 64px; height: 64px;
+        border-radius: 50%;
+        border: 3px solid rgba(255,255,255,.2);
+        object-fit: cover;
+        margin-bottom: 12px;
+    }
+    .profile-name { font-size: 20px; font-weight: 700; margin: 0; }
+    .profile-role {
+        font-size: 13px;
+        color: rgba(255,255,255,.6);
+        display: flex; align-items: center; gap: 8px;
+        margin-top: 4px;
+    }
+    .status-dot {
+        width: 8px; height: 8px;
+        border-radius: 50%;
+        display: inline-block;
+    }
+    .status-dot.online { background: #3CB815; box-shadow: 0 0 8px rgba(60,184,21,.5); }
+    .status-dot.offline { background: #ef4444; }
+
+    /* ── Quick Stats ── */
+    .quick-stats {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+    }
+    .stat-item {
+        background: var(--fs-white);
+        border-radius: 12px;
+        padding: 16px;
+        border: 1px solid var(--fs-border-soft);
+        transition: all .2s;
+    }
+    .stat-item:hover { box-shadow: 0 4px 16px rgba(0,0,0,.06); transform: translateY(-1px); }
+    .stat-item .label { font-size: 12px; color: var(--fs-muted); margin: 0 0 4px; }
+    .stat-item .value { font-size: 24px; font-weight: 700; color: var(--fs-dark); margin: 0; }
+    .stat-item .value.positive { color: #3CB815; }
+    .stat-item .value.warning { color: #f59e0b; }
+
+    /* ── Map ── */
+    .map-card {
+        background: var(--fs-white);
+        border-radius: 16px;
+        overflow: hidden;
+        border: 1px solid var(--fs-border-soft);
+    }
+    .map-card .map-header {
+        padding: 12px 16px;
+        font-weight: 600;
+        font-size: 14px;
+        border-bottom: 1px solid var(--fs-border-soft);
+        display: flex; align-items: center; gap: 8px;
+    }
+
+    /* ── Right Panel ── */
+    .right-panel { display: flex; flex-direction: column; gap: 20px; }
+    .panel-header {
+        display: flex; justify-content: space-between; align-items: center;
+        flex-wrap: wrap; gap: 12px;
+    }
+    .panel-header h2 { font-size: 22px; font-weight: 700; margin: 0; color: var(--fs-dark); }
+    .tab-group {
+        display: flex; gap: 4px;
+        background: var(--fs-light);
+        border-radius: 10px;
+        padding: 4px;
+    }
+    .tab-btn {
+        padding: 8px 20px;
+        border: none;
+        background: transparent;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--fs-muted);
+        cursor: pointer;
+        transition: all .2s;
+    }
+    .tab-btn.active {
+        background: var(--fs-white);
+        color: var(--fs-dark);
+        box-shadow: 0 1px 4px rgba(0,0,0,.08);
+    }
+    .tab-btn:hover:not(.active) { color: #3CB815; }
+
+    /* ── Order Cards Grid ── */
+    .order-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: 16px;
+    }
+    .order-card {
+        background: var(--fs-white);
+        border-radius: 14px;
+        padding: 20px;
+        border: 1px solid var(--fs-border-soft);
+        transition: all .25s ease;
+        cursor: default;
+        position: relative;
+    }
+    .order-card:hover {
+        box-shadow: 0 8px 24px rgba(0,0,0,.08);
+        transform: translateY(-2px);
+        border-color: #e0e7ff;
+    }
+    .order-card .order-id {
+        font-size: 16px; font-weight: 700; color: var(--fs-dark);
+        display: flex; justify-content: space-between; align-items: center;
+        margin-bottom: 12px;
+    }
+    .order-card .order-id .badge {
+        font-size: 11px; font-weight: 600;
+        padding: 4px 12px; border-radius: 20px;
+    }
+    .order-card .order-info { display: flex; flex-direction: column; gap: 6px; }
+    .order-card .info-row {
+        display: flex; align-items: center; gap: 8px;
+        font-size: 13px; color: #4b5563;
+    }
+    .order-card .info-row .icon { color: #9ca3af; width: 16px; text-align: center; }
+    .order-card .info-row strong { color: var(--fs-dark); }
+    .order-card .order-actions {
+        display: flex; gap: 8px; margin-top: 16px; padding-top: 14px;
+        border-top: 1px solid var(--fs-border);
+    }
+    .order-card .order-actions .btn {
+        flex: 1; padding: 10px; border-radius: 10px;
+        font-size: 13px; font-weight: 600; text-align: center;
+        transition: all .2s;
+    }
+    .btn-accept { background: #3CB815; color: white; border: none; }
+    .btn-accept:hover { background: #34a013; }
+    .btn-detail { background: var(--fs-light); color: #4b5563; border: 1px solid #e5e7eb; }
+    .btn-detail:hover { background: #e5e7eb; }
+
+    /* ── Empty State ── */
+    .empty-state {
+        text-align: center; padding: 60px 20px; color: #9ca3af;
+    }
+    .empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+
+    /* ── Mobile ── */
+    @@media (max-width: 768px) {
+        .shipper-split { padding: 12px; gap: 16px; }
+        .order-grid { grid-template-columns: 1fr; }
+        .panel-header h2 { font-size: 18px; }
+        .tab-group { width: 100%; }
+        .tab-btn { flex: 1; text-align: center; }
+    }
+</style>
+
+<div class="content-body">
+<div class="shipper-split">
+    <!-- ═══ LEFT PANEL ═══ -->
+    <div class="left-panel">
+        <!-- Profile Card -->
+        <div class="profile-card">
+            <img src="~/Source/Shipper/images/profile/jolibe.jpg" alt="Avatar" class="profile-avatar" />
+            <h2 class="profile-name">@(shipper?.tenshipper ?? "Shipper")</h2>
+            <div class="profile-role">
+                <span class="status-dot @(shipper?.trangthai == "Đang hoạt động" ? "online" : "offline")"></span>
+                @(shipper?.trangthai ?? "Không hoạt động")
+                <form action="@Url.Action("updateStatus", "Shipper")" method="post" style="margin:0; padding:0; display:inline; margin-left:auto;">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-sm" style="background:rgba(255,255,255,.15);color:white;border-radius:8px;padding:4px 12px;font-size:11px;border:none;">
+                        @(shipper?.trangthai == "Đang hoạt động" ? "Tắt" : "Bật")
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Quick Stats -->
+        <div class="quick-stats">
+            <div class="stat-item">
+                <p class="label">Hôm nay</p>
+                <h3 class="value positive">@todayOrders <span style="font-size:14px;font-weight:400;color:#6b7280;">đơn</span></h3>
+            </div>
+            <div class="stat-item">
+                <p class="label">Thu nhập</p>
+                <h3 class="value positive">@String.Format("{0:N0}", todayIncome)đ</h3>
+            </div>
+            <div class="stat-item">
+                <p class="label">Đang giao</p>
+                <h3 class="value warning">@myOrders.Count(m => m.trangthai == "Đang giao")</h3>
+            </div>
+            <div class="stat-item">
+                <p class="label">FREE-PICK</p>
+                <h3 class="value">@Model.Count(m => m.trangthai == "Chờ shipper lấy hàng")</h3>
+            </div>
+        </div>
+
+        <!-- Map -->
+        <div class="map-card">
+            <div class="map-header">
+                <i class="fas fa-map-marker-alt" style="color:#3CB815;"></i> Vị trí của bạn
+            </div>
+            <div id="shipper-map" style="height:260px; background:#f0f0f0;"></div>
+        </div>
+    </div>
+
+    <!-- ═══ RIGHT PANEL ═══ -->
+    <div class="right-panel">
+        <div class="panel-header">
+            <h2><i class="fas fa-clipboard-list"></i> Đơn hàng
+                <span class="badge bg-light text-muted ms-2" id="lastUpdatedBadge" style="font-weight:400;font-size:11px;vertical-align:middle;">
+                    <i class="far fa-clock" aria-hidden="true"></i> --:--
+                </span></h2>
+            <div class="tab-group">
+                <button class="tab-btn active" onclick="switchTab('freepick')">FREE-PICK</button>
+                <button class="tab-btn" onclick="switchTab('orders')">ĐƠN HÀNG</button>
+            </div>
+        </div>
+
+        <!-- FREE-PICK Orders -->
+        <div id="tab-freepick" class="tab-content">
+            @{
+                var freepickOrders = Model.Where(m => m.trangthai == "Chờ shipper lấy hàng").ToList();
+            }
+            @if (freepickOrders.Any())
+            {
+                <div class="order-grid">
+                    @foreach (var item in freepickOrders)
+                    {
+                        <div class="order-card">
+                            <div class="order-id">
+                                <span>#@item.madh</span>
+                                <span class="badge" style="background:#fef3c7;color:#92400e;">FREE-PICK</span>
+                            </div>
+                            <div class="order-info">
+                                <div class="info-row">
+                                    <i class="fas fa-store icon"></i>
+                                    <span><strong>@item.tenquanan</strong></span>
+                                </div>
+                                <div class="info-row">
+                                    <i class="fas fa-map-pin icon"></i>
+                                    <span>@item.diachi → @item.DiaChiQuan</span>
+                                </div>
+                                <div class="info-row">
+                                    <i class="fas fa-money-bill-wave icon"></i>
+                                    <span>Thu: <strong>@item.tongtien?.ToString("N0")đ</strong> | Ship: <strong>@item.phiship?.ToString("N0")đ</strong></span>
+                                </div>
+                                <div class="info-row">
+                                    <i class="fas fa-calendar icon"></i>
+                                    <span>@TinhToan.GioVietNam(item.ngaydathang)?.ToString("dd/MM HH:mm")</span>
+                                </div>
+                            </div>
+                            <div class="order-actions">
+                                <button onclick="event.preventDefault();claimOrder(@item.madh, this)" class="btn btn-accept">
+                                    <i class="fas fa-check"></i> <span class="btn-text">Nhận đơn</span>
+                                    <span class="btn-spinner" style="display:none;"><i class="fas fa-spinner fa-spin"></i></span>
+                                </button>
+                                <a href="@Url.Action("OrderDetail","Shipper", new { id = item.madh })" class="btn btn-detail">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="empty-state">
+                    <div class="icon"><i class="fas fa-inbox"></i></div>
+                    <p>Không có đơn FREE-PICK nào đang chờ</p>
+                    <small style="color:#bbb;">Khi có đơn mới, bạn sẽ nghe thấy âm báo</small>
+                </div>
+            }
+        </div>
+
+        <!-- My Orders -->
+        <div id="tab-orders" class="tab-content" style="display:none;">
+            @if (myOrders.Any())
+            {
+                <div class="order-grid">
+                    @foreach (var item in myOrders)
+                    {
+                        <div class="order-card">
+                            <div class="order-id">
+                                <span>#@item.madh</span>
+                                <span class="badge" style="background:#dbeafe;color:#1e40af;">@item.trangthai</span>
+                            </div>
+                            <div class="order-info">
+                                <div class="info-row">
+                                    <i class="fas fa-store icon"></i>
+                                    <span><strong>@(item.tbQuanAn?.tenquanan ?? $"Quán #{item.maquan}")</strong></span>
+                                </div>
+                                <div class="info-row">
+                                    <i class="fas fa-money-bill-wave icon"></i>
+                                    <span>Ship: <strong>@item.phiship?.ToString("N0")đ</strong></span>
+                                </div>
+                                <div class="info-row">
+                                    <i class="fas fa-calendar icon"></i>
+                                    <span>@TinhToan.GioVietNam(item.ngaydathang)?.ToString("dd/MM HH:mm")</span>
+                                </div>
+                            </div>
+                            <div class="order-actions">
+                                <a href="@Url.Action("OrderDetail","Shipper", new { id = item.madh })" class="btn btn-detail" style="width:100%;">
+                                    <i class="fas fa-info-circle"></i> Chi tiết
+                                </a>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="empty-state">
+                    <div class="icon"><i class="fas fa-box-open"></i></div>
+                    <p>Chưa có đơn hàng nào</p>
+                </div>
+            }
+        </div>
+
+        <!-- Refresh Button -->
+        <div style="text-align:center;margin-top:4px;">
+            <a href="javascript:location.reload()" class="btn" style="background:#f3f4f6;color:#4b5563;border:1px solid #e5e7eb;border-radius:10px;padding:8px 24px;font-size:13px;">
+                <i class="fas fa-sync-alt"></i> Làm mới
+            </a>
+        </div>
+    </div>
+</div>
+
+</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+<script>
+    // Cập nhật lastUpdated badge
+    (function() {
+        var now = new Date();
+        var badge = document.getElementById('lastUpdatedBadge');
+        if (badge) badge.innerHTML = '<i class="far fa-clock" aria-hidden="true"></i> '
+            + String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+    })();
+
+    // Tab switching
+    function switchTab(tab) {
+        document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+        document.getElementById('tab-' + tab).style.display = '';
+        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+        event.target.classList.add('active');
+    }
+
+    // 🔵 FIX Bug #11: Loading state + disabled khi ClaimOrder (tránh double-click)
+    function claimOrder(orderId, btn) {
+        if (btn.disabled) return;
+        btn.disabled = true;
+        btn.querySelector('.btn-text').style.display = 'none';
+        btn.querySelector('.btn-spinner').style.display = 'inline';
+        btn.style.opacity = '0.6';
+
+        var token = document.querySelector('input[name="__RequestVerificationToken"]')?.value || '';
+        $.ajax({
+            url: '@Url.Action("ClaimOrder", "Shipper")',
+            type: 'POST',
+            data: { id: orderId, __RequestVerificationToken: token },
+            success: function(res) {
+                if (res.success) {
+                    // Card biến mất mượt
+                    var card = btn.closest('.order-card');
+                    if (card) {
+                        card.style.transition = 'opacity 0.3s, transform 0.3s';
+                        card.style.opacity = '0';
+                        card.style.transform = 'translateX(40px)';
+                        setTimeout(() => { if (card.parentNode) card.parentNode.removeChild(card); }, 350);
+                    }
+                } else {
+                    alert('❌ ' + res.message);
+                    btn.disabled = false;
+                    btn.querySelector('.btn-text').style.display = 'inline';
+                    btn.querySelector('.btn-spinner').style.display = 'none';
+                    btn.style.opacity = '1';
+                }
+            },
+            error: function() {
+                alert('❌ Lỗi kết nối');
+                btn.disabled = false;
+                btn.querySelector('.btn-text').style.display = 'inline';
+                btn.querySelector('.btn-spinner').style.display = 'none';
+                btn.style.opacity = '1';
+            }
+        });
+    }
+
+    // Leaflet map
+    $(document).ready(function () {
+        if (typeof L !== 'undefined' && document.getElementById('shipper-map')) {
+            var map = L.map('shipper-map').setView([10.8231, 106.6297], 13);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+            }).addTo(map);
+
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(function(pos) {
+                    map.setView([pos.coords.latitude, pos.coords.longitude], 15);
+                    L.marker([pos.coords.latitude, pos.coords.longitude]).addTo(map)
+                        .bindPopup('Vị trí của bạn').openPopup();
+                    if (window.shipperConn && window.currentOrderId) {
+                        window.shipperConn.invoke('UpdateLocation', window.currentOrderId, pos.coords.latitude, pos.coords.longitude).catch(function(){});
+                    }
+                }, function() {
+                    L.marker([10.8231, 106.6297]).addTo(map).bindPopup('Fastship - TP. Hồ Chí Minh').openPopup();
+                });
+            }
+        }
+
+        // SignalR real-time
+        (function initShipperRealtime() {
+            var conn = new signalR.HubConnectionBuilder()
+                .withUrl('/nhantin').withAutomaticReconnect().build();
+
+            // 🔵 FIX Bug #12: Audio fallback - dùng Web Audio API + fallback im lặng
+            function playNotificationSound() {
+                try {
+                    var ctx = new (window.AudioContext || window.webkitAudioContext)();
+                    var osc = ctx.createOscillator();
+                    var gain = ctx.createGain();
+                    osc.connect(gain); gain.connect(ctx.destination);
+                    osc.frequency.value = 660; osc.type = 'triangle';
+                    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+                    osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.5);
+                } catch (e) {
+                    console.warn('Audio not supported, using visual notification');
+                }
+            }
+
+            conn.on('newPickupOrder', function () {
+                playNotificationSound();
+                setTimeout(function() { location.reload(); }, 1000);
+            });
+
+            conn.on('orderAccepted', function (orderId) {
+                var card = document.querySelector(`.order-card:has(a[href*="/Shipper/OrderDetail/${orderId}"])`);
+                if (card) {
+                    card.style.transition = 'opacity 0.3s, transform 0.3s';
+                    card.style.opacity = '0'; card.style.transform = 'translateX(40px)';
+                    setTimeout(() => { if (card.parentNode) card.parentNode.removeChild(card); }, 350);
+                }
+            });
+
+            conn.onreconnected(function() { conn.invoke('JoinShipperGroup', @(ViewBag.ShipperUserId ?? 0)).catch(function(){}); });
+            conn.start().then(function() { conn.invoke('JoinShipperGroup', @(ViewBag.ShipperUserId ?? 0)).catch(function(){}); }).catch(function(err) {
+                console.error('SignalR:', err);
+            });
+            window.shipperConn = conn;
+
+            // 🔵 FIX Bug #13: Clear geolocation watch khi rời page
+            window.addEventListener('beforeunload', function() {
+                if (window._geoWatchId !== undefined) {
+                    navigator.geolocation.clearWatch(window._geoWatchId);
+                    window._geoWatchId = undefined;
+                }
+                if (window.shipperConn) {
+                    window.shipperConn.stop();
+                }
+            });
+        })();
+    });
+</script>

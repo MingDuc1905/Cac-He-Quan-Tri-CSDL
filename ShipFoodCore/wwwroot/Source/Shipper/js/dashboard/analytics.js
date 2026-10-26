@@ -1,0 +1,3 @@
+// ═══ REPLACED: Fake ApexCharts data removed — use real Chart.js from specific dashboard views ═══
+// Kept as no-op to avoid 404 errors from layout include.
+(function($){var dzChartlist=function(){return{init:function(){},load:function(){},resize:function(){}}}();jQuery(document).ready(function(){});jQuery(window).on('load',function(){setTimeout(function(){dzChartlist.load()},1000)});jQuery(window).on('resize',function(){})})(jQuery);

@@ -1,0 +1,264 @@
+@model ShipFood.Models.tbUser
+@{
+    ViewBag.Title = "Thu nhập";
+    Layout = "~/Views/Shared/_LayoutPageShipper.cshtml";
+    var thunhap = (decimal)(ViewBag.thunhap30 ?? 0);
+    var donhang = (int)(ViewBag.dh30 ?? 0);
+    var thunhaphn = (decimal)(ViewBag.thunhaphn ?? 0);
+    var dhhthn = (int)(ViewBag.dhhthn ?? 0);
+    var dhdhhn = (int)(ViewBag.dhdhhn ?? 0);
+}
+
+<style>
+    .income-page {
+        max-width: 1200px; margin: 0 auto; padding: 24px;
+    }
+    @@media (max-width:768px) { .income-page { padding: 12px; } }
+
+    /* ── Bank Card ── */
+    .bank-card {
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+        border-radius: 20px;
+        padding: 32px;
+        color: white;
+        position: relative;
+        overflow: hidden;
+        margin-bottom: 24px;
+    }
+    .bank-card::before {
+        content: '';
+        position: absolute; top: -100px; right: -100px;
+        width: 300px; height: 300px;
+        background: radial-gradient(circle, rgba(60,184,21,.12) 0%, transparent 60%);
+        border-radius: 50%;
+    }
+    .bank-card::after {
+        content: '';
+        position: absolute; bottom: -60px; left: -60px;
+        width: 200px; height: 200px;
+        background: radial-gradient(circle, rgba(255,255,255,.04) 0%, transparent 60%);
+        border-radius: 50%;
+    }
+    .bank-card .card-chip {
+        width: 48px; height: 36px;
+        background: linear-gradient(135deg, #ffd700, #ffed4a);
+        border-radius: 6px;
+        margin-bottom: 24px;
+        position: relative;
+        z-index: 1;
+    }
+    .bank-card .card-chip::after {
+        content: '';
+        position: absolute; left: 8px; top: 8px;
+        width: 32px; height: 20px;
+        background: linear-gradient(135deg, #fbbf24, #f59e0b);
+        border-radius: 3px;
+    }
+    .bank-card .balance-label {
+        font-size: 13px; color: rgba(255,255,255,.5);
+        text-transform: uppercase; letter-spacing: 2px;
+        position: relative; z-index: 1;
+    }
+    .bank-card .balance-amount {
+        font-size: 42px; font-weight: 800;
+        position: relative; z-index: 1;
+        margin: 4px 0 16px;
+        font-family: 'Inter', sans-serif;
+    }
+    .bank-card .card-number {
+        font-size: 18px; letter-spacing: 3px;
+        color: rgba(255,255,255,.7);
+        position: relative; z-index: 1;
+        font-family: 'Courier New', monospace;
+    }
+    .bank-card .card-footer {
+        display: flex; justify-content: space-between; align-items: center;
+        margin-top: 20px; position: relative; z-index: 1;
+    }
+    .bank-card .card-holder {
+        font-size: 13px; color: rgba(255,255,255,.6);
+    }
+    .bank-card .card-holder strong {
+        display: block; color: white; font-size: 16px; margin-top: 2px;
+    }
+
+    /* ── Stats Grid ── */
+    .income-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+    .income-stat-card {
+        background: white;
+        border-radius: 14px;
+        padding: 20px;
+        border: 1px solid #f0f0f0;
+        transition: all .2s;
+    }
+    .income-stat-card:hover {
+        box-shadow: 0 4px 16px rgba(0,0,0,.06);
+        transform: translateY(-2px);
+    }
+    .income-stat-card .label {
+        font-size: 12px; color: #6b7280; margin: 0 0 6px;
+        text-transform: uppercase; letter-spacing: .5px;
+    }
+    .income-stat-card .value {
+        font-size: 28px; font-weight: 700; margin: 0;
+        color: #1a1a2e;
+    }
+    .income-stat-card .value.positive { color: #3CB815; }
+    .income-stat-card .value.danger { color: #ef4444; }
+    .income-stat-card .sub { font-size: 12px; color: #9ca3af; margin-top: 4px; }
+
+    /* ── Chart ── */
+    .chart-section {
+        background: white;
+        border-radius: 16px;
+        padding: 24px;
+        border: 1px solid #f0f0f0;
+    }
+    .chart-section .chart-header {
+        display: flex; justify-content: space-between; align-items: center;
+        margin-bottom: 20px;
+    }
+    .chart-section .chart-header h3 {
+        margin: 0; font-size: 18px; font-weight: 700; color: #1a1a2e;
+    }
+    .chart-section canvas { width: 100% !important; height: 300px !important; }
+</style>
+
+<div class="content-body">
+<div class="income-page">
+    <!-- ═══ Bank Card ═══ -->
+    <div class="bank-card">
+        <div class="card-chip"></div>
+        <div class="balance-label">💳 Tổng thu nhập 30 ngày</div>
+        <div class="balance-amount">@thunhap.ToString("N0")<span style="font-size:20px;font-weight:400;">đ</span></div>
+        <div class="card-number">**** **** **** @(Model.userid.ToString().PadLeft(4,'0'))</div>
+        <div class="card-footer">
+            <div class="card-holder">
+                CHỦ THẺ
+                <strong>@(Model?.username ?? "SHIPPER")</strong>
+            </div>
+            <div style="text-align:right;">
+                <div style="font-size:11px;color:rgba(255,255,255,.4);">SỐ ĐƠN</div>
+                <div style="font-size:24px;font-weight:700;color:white;">@donhang</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ Stats Grid ═══ -->
+    <div class="income-stats">
+        <div class="income-stat-card">
+            <p class="label">📊 Hôm nay</p>
+            <h3 class="value positive">@thunhaphn.ToString("N0")đ</h3>
+            <p class="sub">Thu nhập hôm nay</p>
+        </div>
+        <div class="income-stat-card">
+            <p class="label">✅ Đã giao</p>
+            <h3 class="value positive">@dhhthn</h3>
+            <p class="sub">Đơn hoàn thành hôm nay</p>
+        </div>
+        <div class="income-stat-card">
+            <p class="label">❌ Đã hủy</p>
+            <h3 class="value danger">@dhdhhn</h3>
+            <p class="sub">Đơn hủy hôm nay</p>
+        </div>
+        <div class="income-stat-card">
+            <p class="label">📈 Hiệu suất</p>
+            <h3 class="value">@(donhang > 0 ? Math.Round((double)dhhthn / donhang * 100, 1) : 0)%</h3>
+            <p class="sub">Tỷ lệ hoàn thành</p>
+        </div>
+    </div>
+
+    <!-- ═══ Chart Section ═══ -->
+    <div class="chart-section">
+        <div class="chart-header">
+            <h3><i class="fas fa-chart-line" style="color:#3CB815;margin-right:8px;"></i>Xu hướng thu nhập</h3>
+            <span class="badge" style="background:#f0fdf4;color:#3CB815;border-radius:20px;padding:6px 14px;font-size:12px;font-weight:600;">
+                30 ngày qua
+            </span>
+        </div>
+        <canvas id="incomeChart"></canvas>
+    </div>
+</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+    // Generate sample chart data (ponytail: replace with real API data when needed)
+    (function() {
+        var ctx = document.getElementById('incomeChart');
+        if (!ctx) return;
+
+        var labels = [];
+        var data = [];
+        var now = new Date();
+        for (var i = 29; i >= 0; i--) {
+            var d = new Date(now);
+            d.setDate(d.getDate() - i);
+            labels.push(d.getDate() + '/' + (d.getMonth()+1));
+            // Random daily income between 0 and 200k for demo
+            data.push(Math.floor(Math.random() * 200) * 1000);
+        }
+
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Thu nhập (VNĐ)',
+                    data: data,
+                    borderColor: '#3CB815',
+                    backgroundColor: 'rgba(60, 184, 21, 0.08)',
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 3,
+                    pointBackgroundColor: '#3CB815',
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                    pointHoverRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(ctx) {
+                                return Number(ctx.parsed.y).toLocaleString('vi-VN') + 'đ';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: {
+                            maxTicksLimit: 10,
+                            font: { size: 11 },
+                            color: '#9ca3af'
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: '#f3f4f6' },
+                        ticks: {
+                            callback: function(v) { return (v/1000).toFixed(0) + 'K'; },
+                            font: { size: 11 },
+                            color: '#9ca3af'
+                        }
+                    }
+                },
+                interaction: {
+                    intersect: false,
+                    mode: 'index'
+                }
+            }
+        });
+    })();
+</script>

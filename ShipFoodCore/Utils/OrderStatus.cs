@@ -1,0 +1,93 @@
+// ============================================================
+// 📋 OrderStatus — Constants trạng thái đơn hàng (thay thế magic strings)
+// ============================================================
+// Ý nghĩa: Định nghĩa tất cả hằng số trạng thái, transition map, auto-messages
+// Chức năng: HoanThanh/DaHuy/ChoShipper..., IsValidTransition, StatusFlow, AutoMessages
+// KEYWORDS: order status, trạng thái, constants, lifecycle, transition, flow
+// ============================================================
+namespace ShipFood.Utils;
+
+public static class OrderStatus
+{
+    // ════════════════════════════════════════════════════════════
+    // 📋 KHỐI HẰNG SỐ TRẠNG THÁI (thay thế magic strings)
+    // ════════════════════════════════════════════════════════════
+    // KEYWORDS: order status, trạng thái, constants, lifecycle
+    // → FILE: được dùng khắp nơi: RestaurantController (nhandon/huydon),
+    //   ShipperController (UpdateDonHang), PaymentController, AdminController,
+    //   AutoCancelPendingOrdersService, Chats.cs
+    // → QUY TẮC: KHÔNG hardcode chuỗi trạng thái, luôn dùng const này
+    //   để tránh lỗi chính tả (vd "Đã xác nhận" vs "Đã xác nhân")
+
+    // ─── Order Lifecycle ───
+    public const string ChoThanhToan = "Chờ thanh toán";
+    public const string DaDat = "Đã đặt";
+    public const string DaXacNhan = "Đã xác nhận";
+    public const string DangChuanBi = "Đang chuẩn bị";
+    public const string ChoShipper = "Chờ shipper lấy hàng";
+    public const string DaNhan = "Đã nhận";
+    public const string DaLay = "Đã lấy";
+    public const string DangGiao = "Đang giao";
+    public const string HoanThanh = "Hoàn thành";
+    public const string DaHuy = "Đã hủy";
+
+    // ─── Shipper Status ───
+    public const string DangHoatDong = "Đang hoạt động";
+    public const string KhongHoatDong = "Không hoạt động";
+
+    // ─── Restaurant Status ───
+    public const string DangMoCua = "Đang mở cửa";
+    public const string DongCua = "Đóng cửa";
+
+    // ─── Role Names ───
+    public const string RoleShipper = "Shipper";
+    public const string RoleQuanAn = "Quán ăn";
+    public const string RoleAdmin = "Admin";
+    public const string RoleKhachHang = "Khách hàng";
+
+    // ════════════════════════════════════════════════════════════
+    // 🔄 KHỐI TRANSITION MAP & AUTO MESSAGE
+    // ════════════════════════════════════════════════════════════
+    // KEYWORDS: transition, status flow, auto message, [SYSTEM]
+    // → FILE: ShipperController.UpdateDonHang gọi IsValidTransition để chặn
+    //   chuyển trạng thái không hợp lệ (vd Đã nhận → Đang giao là sai)
+    // → FILE: RestaurantController + ShipperController dùng AutoMessages để
+    //   auto-sinh tin nhắn [SYSTEM] vào tbTinNhan khi đổi trạng thái
+    // → FILE: Views hiển thị StatusFlow để vẽ progress bar đơn hàng
+
+    // ─── Valid Transition Map ───
+    public static readonly Dictionary<string, string[]> AllowedTransitions = new()
+    {
+        [DaNhan] = new[] { DaXacNhan, ChoShipper },
+        [DaLay] = new[] { DaXacNhan, ChoShipper, DangGiao },
+        [DangGiao] = new[] { DaLay },
+        [HoanThanh] = new[] { DangGiao, DaLay },
+    };
+
+    // ─── Status display order (for progress bars) ───
+    public static readonly string[] StatusFlow =
+    {
+        DaDat, DaXacNhan, DangChuanBi, ChoShipper, DaLay, DangGiao, HoanThanh
+    };
+
+    // ─── Auto-message templates (prefixed with [SYSTEM] for sender detection) ───
+    public static readonly Dictionary<string, string> AutoMessages = new()
+    {
+        [DaXacNhan] = "[SYSTEM] ✅ Quán đã xác nhận đơn hàng! Đang chuẩn bị món.",
+        [ChoShipper] = "[SYSTEM] 👨‍🍳 Quán đã chuẩn bị xong món! Đang chờ shipper đến lấy.",
+        [DaNhan] = "[SYSTEM] 🛵 Shipper đã nhận đơn! Đang đến quán lấy hàng.",
+        [DaLay] = "[SYSTEM] 📦 Shipper đã lấy hàng từ quán! Đang trên đường giao đến bạn.",
+        [DangGiao] = "[SYSTEM] 🚚 Đơn hàng đang được giao đến bạn!",
+        [HoanThanh] = "[SYSTEM] ✅ Đơn hàng đã giao thành công! Cảm ơn bạn đã sử dụng FastShip.",
+        [DaHuy] = "[SYSTEM] ❌ Đơn hàng đã bị hủy.",
+    };
+
+    /// <summary>
+    /// Kiểm tra transition hợp lệ
+    /// </summary>
+    public static bool IsValidTransition(string newStatus, string currentStatus)
+    {
+        return AllowedTransitions.TryGetValue(newStatus, out var validPrev)
+               && validPrev.Contains(currentStatus);
+    }
+}

@@ -1,0 +1,718 @@
+﻿@{
+    ViewBag.Title = "Dashboard";
+    Layout = "~/Views/Shared/_LayoutPageAdmin.cshtml";
+}
+
+<div class="content-body">
+    <div class="container-fluid">
+        <!-- Bộ lọc ngày -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body d-flex align-items-center gap-3 flex-wrap">
+                        <h4 class="card-title mb-0 me-3">Dashboard Thống kê</h4>
+                        <span class="badge bg-light text-muted ms-2" id="lastUpdatedBadge" style="font-weight:400;font-size:11px;">
+                            <i class="far fa-clock" aria-hidden="true"></i> Cập nhật lúc: --:--
+                        </span>
+                        <div class="d-flex align-items-center gap-2">
+                            <label class="mb-0">Từ:</label>
+                            <input type="date" id="fromDate" class="form-control form-control-sm" style="width:160px" />
+                            <label class="mb-0 ms-2">Đến:</label>
+                            <input type="date" id="toDate" class="form-control form-control-sm" style="width:160px" />
+                            <style>
+                                @@media (max-width: 768px) {
+                                    .card-body.d-flex { flex-direction: column; align-items: flex-start !important; }
+                                    .card-body input[type="date"] { width: 100% !important; margin: 4px 0; }
+                                }
+                            </style>
+                            <button class="btn btn-primary btn-sm ms-2" onclick="loadDashboard()">
+                                <i class="fas fa-sync" aria-hidden="true"></i> Cập nhật
+                            </button>
+                            <a href="@Url.Action("ExportCsv", "Admin")" class="btn btn-success btn-sm ms-2">
+                                <i class="fas fa-file-csv" aria-hidden="true"></i> Xuất CSV
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Summary Cards with hover animations -->
+    <!-- Styles now use design tokens from fs-dashboard-overrides.css + fastship-design-tokens.css -->
+    <style>
+        .filter-bar {
+            background: var(--fs-white);
+            border: none; border-radius: var(--fs-radius);
+            padding: 1.2rem 1.5rem;
+            box-shadow: var(--fs-shadow-sm);
+        }
+        .apriori-card {
+            background: var(--fs-light);
+            border-radius: var(--fs-radius);
+            padding: 16px 18px;
+            border: 1px solid var(--fs-border);
+            transition: all .3s;
+        }
+        .apriori-card:hover {
+            border-color: #17a2b8;
+            box-shadow: 0 4px 16px rgba(23,162,184,.15);
+        }
+    </style>
+
+    <div class="row" id="summary-cards">
+        <div class="col-xl-3 col-lg-6 col-md-6 mb-4">
+            <div class="card fs-kpi-card">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="fs-kpi-icon fs-kpi-icon-green me-3" style="width:56px;height:56px;font-size:24px;">
+                            <i class="fas fa-dollar-sign" aria-hidden="true"></i>
+                        </div>
+                        <div>
+                            <p class="fs-kpi-label">Tổng doanh thu</p>
+                            <h3 class="fs-kpi-value text-success" id="stat-doanhthu">0</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-lg-6 col-md-6 mb-4">
+            <div class="card fs-kpi-card">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="fs-kpi-icon fs-kpi-icon-blue me-3" style="width:56px;height:56px;font-size:24px;">
+                            <i class="fas fa-shopping-cart" aria-hidden="true"></i>
+                        </div>
+                        <div>
+                            <p class="fs-kpi-label">Tổng số đơn</p>
+                            <h3 class="fs-kpi-value text-primary" id="stat-sodon">0</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-lg-6 col-md-6 mb-4">
+            <div class="card fs-kpi-card">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="fs-kpi-icon fs-kpi-icon-blue me-3" style="width:56px;height:56px;font-size:24px;background:linear-gradient(135deg, #17a2b8, #6f42c1);color:#fff;">
+                            <i class="fas fa-users" aria-hidden="true"></i>
+                        </div>
+                        <div>
+                            <p class="fs-kpi-label">Tổng khách hàng</p>
+                            <h3 class="fs-kpi-value text-info" id="stat-khachhang">0</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-lg-6 col-md-6 mb-4">
+            <div class="card fs-kpi-card">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="fs-kpi-icon fs-kpi-icon-orange me-3" style="width:56px;height:56px;font-size:24px;">
+                            <i class="fas fa-percent" aria-hidden="true"></i>
+                        </div>
+                        <div>
+                            <p class="fs-kpi-label">Tỷ lệ hủy</p>
+                            <h3 class="fs-kpi-value text-warning" id="stat-tilehuy">0%</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+        <!-- Charts Row 1: Line + Bar -->
+        <!-- Charts Row 1: Line + Pie -->
+        <div class="row">
+            <div class="col-lg-8 mb-4">
+                <div class="card fs-card shadow-sm">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h4><i class="fas fa-chart-line text-success me-2" aria-hidden="true"></i>Doanh thu & Số đơn theo ngày</h4>
+                        <span class="badge bg-success rounded-pill">Real-time</span>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="revenueChart" height="280"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4 mb-4">
+                <div class="card fs-card shadow-sm">
+                    <div class="card-header">
+                        <h4><i class="fas fa-chart-pie text-primary me-2" aria-hidden="true"></i>Trạng thái đơn hàng</h4>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="statusPieChart" height="280"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Row 2: Top Restaurants Bar -->
+        <div class="row">
+            <div class="col-12 mb-4">
+                <div class="card chart-container shadow-sm">
+                    <div class="card-header">
+                        <h4><i class="fas fa-trophy text-warning me-2" aria-hidden="true"></i>Top 5 quán ăn doanh thu cao nhất</h4>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="topRestaurantChart" height="240"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== TOP SOLD ITEMS TABLE ===== -->
+        <div class="row">
+            <div class="col-12 mb-4">
+                <div class="card chart-container shadow-sm">
+                    <div class="card-header">
+                        <h4><i class="fas fa-utensils text-danger me-2" aria-hidden="true"></i>Top món ăn bán chạy nhất</h4>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover" id="topItemsTable">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Tên món</th>
+                                        <th>Quán ăn</th>
+                                        <th class="text-center">Số lượng đã bán</th>
+                                        <th class="text-end">Doanh thu</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="topItemsBody">
+                                    <tr><td colspan="5" class="text-center text-muted">Đang tải...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== REVENUE BY RESTAURANT TABLE ===== -->
+        <div class="row">
+            <div class="col-12 mb-4">
+                <div class="card chart-container shadow-sm">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h4><i class="fas fa-store text-success me-2" aria-hidden="true"></i>Doanh thu chi tiết theo quán</h4>
+                        <span class="badge bg-success rounded-pill">Từ DB thực tế</span>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover" id="revenueTable">
+                                <thead>
+                                    <tr>
+                                        <th>Quán ăn</th>
+                                        <th class="text-center">Số đơn</th>
+                                        <th class="text-end">Doanh thu</th>
+                                        <th class="text-center">Đánh giá</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="revenueBody">
+                                    <tr><td colspan="4" class="text-center text-muted">Đang tải...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== SYSTEM STATS ROW ===== -->
+        <div class="row">
+            <div class="col-md-6 mb-4">
+                <div class="card chart-container shadow-sm">
+                    <div class="card-header">
+                        <h4><i class="fas fa-database text-info me-2" aria-hidden="true"></i>Tổng quan hệ thống</h4>
+                    </div>
+                    <div class="card-body">
+                        <div id="systemStats">
+                            <div class="d-flex justify-content-between py-2 border-bottom">
+                                <span class="text-muted">Tổng số quán ăn đang hoạt động</span>
+                                <strong id="stat-tongQuan">...</strong>
+                            </div>
+                            <div class="d-flex justify-content-between py-2 border-bottom">
+                                <span class="text-muted">Tổng số shipper đang hoạt động</span>
+                                <strong id="stat-tongShipper">...</strong>
+                            </div>
+                            <div class="d-flex justify-content-between py-2 border-bottom">
+                                <span class="text-muted">Shipper chờ duyệt</span>
+                                <strong id="stat-shipperChoDuyet" class="text-warning">...</strong>
+                            </div>
+                            <div class="d-flex justify-content-between py-2 border-bottom">
+                                <span class="text-muted">Tổng số khách hàng</span>
+                                <strong id="stat-tongKhach">...</strong>
+                            </div>
+                            <div class="d-flex justify-content-between py-2 border-bottom">
+                                <span class="text-muted">Tổng số món ăn</span>
+                                <strong id="stat-tongMon">...</strong>
+                            </div>
+                            <div class="d-flex justify-content-between py-2 border-bottom">
+                                <span class="text-muted">Đơn hôm nay</span>
+                                <strong id="stat-donHomNay" class="text-info">...</strong>
+                            </div>
+                            <div class="d-flex justify-content-between py-2 border-bottom">
+                                <span class="text-muted">Đơn tháng này</span>
+                                <strong id="stat-donThangNay">...</strong>
+                            </div>
+                            <div class="d-flex justify-content-between py-2 border-bottom">
+                                <span class="text-muted">Doanh thu hôm nay</span>
+                                <strong id="stat-doanhThuHomNay" class="text-success">...</strong>
+                            </div>
+                            <div class="d-flex justify-content-between py-2 border-bottom">
+                                <span class="text-muted">Doanh thu tháng này</span>
+                                <strong id="stat-doanhThuThangNay" class="text-success">...</strong>
+                            </div>
+                            <div class="d-flex justify-content-between py-2">
+                                <span class="text-muted">Tổng số đơn hàng (all time)</span>
+                                <strong id="stat-tongDonAll">...</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 mb-4">
+                <div class="card chart-container shadow-sm">
+                    <div class="card-header">
+                        <h4><i class="fas fa-tags text-warning me-2" aria-hidden="true"></i>Khuyến mãi đang hoạt động</h4>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover" id="couponTable">
+                                <thead>
+                                    <tr>
+                                        <th>Mã</th>
+                                        <th>Giảm</th>
+                                        <th>HSD</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="couponBody">
+                                    <tr><td colspan="3" class="text-center text-muted">Đang tải...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== APRIORI: PHÂN TÍCH LIÊN KẾT DANH MỤC ===== -->
+        @{
+            var catApriori = ViewBag.CategoryAprioriInsights as List<object>;
+        }
+        @if (catApriori != null && catApriori.Any())
+        {
+            <div class="row">
+                <div class="col-12 mb-4">
+                    <div class="card chart-container shadow-sm">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h4><i class="fas fa-project-diagram text-info me-2" aria-hidden="true"></i>Phân tích liên kết Danh mục — Apriori</h4>
+                            <span class="badge bg-warning rounded-pill">Khai phá dữ liệu</span>
+                        </div>
+                        <div class="card-body">
+                            <p style="font-size:13px;color:#6c757d;margin-bottom:16px;">
+                                <i class="fas fa-info-circle me-1" aria-hidden="true"></i>
+                                Mối liên hệ kết hợp giữa các danh mục món ăn dựa trên <strong>hành vi mua sắm thực tế</strong>.
+                                <strong>Support</strong> = tỷ lệ đơn hàng chứa cả 2 danh mục. <strong>Confidence</strong> = khả năng khách mua danh mục B nếu đã mua danh mục A.
+                            </p>
+                            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;">
+                                @foreach (var insight in catApriori)
+                                {
+                                    var i = insight as dynamic;
+                                    <div class="apriori-card">
+                                        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+                                            <span style="background:#17a2b8;color:#fff;width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:700;"><i class="fas fa-chart-bar" aria-hidden="true"></i></span>
+                                            <div>
+                                                <div style="font-weight:700;font-size:15px;">@i.DanhMucA <span style="color:#17a2b8;">⟷</span> @i.DanhMucB</div>
+                                            </div>
+                                        </div>
+                                        <!-- Progress bar Support -->
+                                        <div style="margin-bottom:8px;">
+                                            <div style="display:flex;justify-content:space-between;font-size:12px;color:#6c757d;margin-bottom:3px;">
+                                                <span>Support</span>
+                                                <span><strong>@i.Support%</strong></span>
+                                            </div>
+                                            <div style="height:6px;background:#e9ecef;border-radius:3px;overflow:hidden;">
+                                                <div style="height:100%;width:@(Math.Min((double)i.Support * 5, 100))%;background:linear-gradient(90deg,#17a2b8,#20c997);border-radius:3px;transition:width .5s;"></div>
+                                            </div>
+                                        </div>
+                                        <div style="display:flex;justify-content:space-between;font-size:12px;color:#6c757d;">
+                                            <span>Confidence @i.DanhMucA → @i.DanhMucB: <strong style="color:#e74c3c;">@i.ConfidenceAtoB%</strong></span>
+                                            <span style="color:#999;">@i.PairCount đơn</span>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        let revenueChart = null, statusPieChart = null, topRestaurantChart = null;
+
+        $(document).ready(function () {
+            // Set default dates
+            var today = new Date();
+            var thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(today.getDate() - 30);
+            $('#fromDate').val(thirtyDaysAgo.toISOString().split('T')[0]);
+            $('#toDate').val(today.toISOString().split('T')[0]);
+
+            loadDashboard();
+        });
+
+        function loadDashboard() {
+            var fromDate = $('#fromDate').val();
+            var toDate = $('#toDate').val();
+
+            // 1. Load summary stats
+            $.getJSON('@Url.Action("GetDashboardStats", "Admin")', { fromDate: fromDate, toDate: toDate }, function (data) {
+                if (data.error) return;
+                $('#stat-doanhthu').text(Number(data.tongDoanhThu).toLocaleString('vi-VN') + ' VNĐ');
+                $('#stat-sodon').text(data.tongSoDon);
+                $('#stat-khachhang').text(data.tongKhachHang);
+                $('#stat-tilehuy').text(data.tiLeHuy + '%');
+            });
+
+            // 2. Load revenue line chart
+            $.getJSON('@Url.Action("GetRevenueChart", "Admin")', { fromDate: fromDate, toDate: toDate }, function (data) {
+                var labels = data.map(function (d) { return d.date; });
+                var doanhThu = data.map(function (d) { return d.doanhThu; });
+                var soDon = data.map(function (d) { return d.soDon; });
+
+                if (revenueChart) revenueChart.destroy();
+
+                var ctx = document.getElementById('revenueChart').getContext('2d');
+                revenueChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Doanh thu (VNĐ)',
+                            data: doanhThu,
+                            borderColor: '#28a745',
+                            backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                            fill: true,
+                            tension: 0.4,
+                            yAxisID: 'y'
+                        }, {
+                            label: 'Số đơn',
+                            data: soDon,
+                            borderColor: '#007bff',
+                            backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                            fill: true,
+                            tension: 0.4,
+                            yAxisID: 'y1'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        interaction: { mode: 'index', intersect: false },
+                        plugins: { legend: { position: 'top' } },
+                        scales: {
+                            y: {
+                                type: 'linear',
+                                display: true,
+                                position: 'left',
+                                ticks: { callback: function (v) { return v.toLocaleString('vi-VN'); } }
+                            },
+                            y1: {
+                                type: 'linear',
+                                display: true,
+                                position: 'right',
+                                grid: { drawOnChartArea: false }
+                            }
+                        }
+                    }
+                });
+            });
+
+            // 3. Load order status pie chart
+            $.getJSON('@Url.Action("GetOrderStatusPie", "Admin")', { fromDate: fromDate, toDate: toDate }, function (data) {
+                if (statusPieChart) statusPieChart.destroy();
+
+                var ctx = document.getElementById('statusPieChart').getContext('2d');
+                statusPieChart = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: data.labels,
+                        datasets: [{
+                            data: data.data,
+                            backgroundColor: data.colors
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: { position: 'bottom' }
+                        }
+                    }
+                });
+            });
+
+            // 4. Load top restaurants bar chart
+            $.getJSON('@Url.Action("GetTopRestaurants", "Admin")', { fromDate: fromDate, toDate: toDate }, function (data) {
+                var labels = data.map(function (d) { return d.tenQuan; });
+                var doanhThu = data.map(function (d) { return d.doanhThu; });
+                var soDon = data.map(function (d) { return d.soDon; });
+
+                if (topRestaurantChart) topRestaurantChart.destroy();
+
+                var ctx = document.getElementById('topRestaurantChart').getContext('2d');
+                topRestaurantChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Doanh thu (VNĐ)',
+                            data: doanhThu,
+                            backgroundColor: 'rgba(40, 167, 69, 0.7)',
+                            borderColor: '#28a745',
+                            borderWidth: 1
+                        }, {
+                            label: 'Số đơn',
+                            data: soDon,
+                            backgroundColor: 'rgba(0, 123, 255, 0.7)',
+                            borderColor: '#007bff',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: { legend: { position: 'top' } },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: { callback: function (v) { return v.toLocaleString('vi-VN'); } }
+                            }
+                        }
+                    }
+                });
+            });
+
+            // 5. Load top items table
+            $.getJSON('@Url.Action("GetTopItems", "Admin")', { fromDate: fromDate, toDate: toDate }, function (data) {
+                if (!data || data.length === 0) {
+                    $('#topItemsBody').html('<tr><td colspan="5" class="text-center text-muted">Chưa có dữ liệu</td></tr>');
+                    return;
+                }
+                var html = '';
+                data.forEach(function(item, idx) {
+                    html += '<tr>' +
+                        '<td>' + (idx + 1) + '</td>' +
+                        '<td><strong>' + item.tenMon + '</strong></td>' +
+                        '<td><span style="font-size:13px;color:#6c757d;">' + item.tenQuan + '</span></td>' +
+                        '<td class="text-center"><span class="badge bg-primary rounded-pill">' + item.soLuong + '</span></td>' +
+                        '<td class="text-end text-success fw-bold">' + Number(item.doanhThu).toLocaleString('vi-VN') + ' VNĐ</td>' +
+                        '</tr>';
+                });
+                $('#topItemsBody').html(html);
+            });
+
+            // 6. Load revenue by restaurant table
+            $.getJSON('@Url.Action("GetTopRestaurants", "Admin")', { fromDate: fromDate, toDate: toDate }, function (data) {
+                if (!data || data.length === 0) {
+                    $('#revenueBody').html('<tr><td colspan="4" class="text-center text-muted">Chưa có dữ liệu</td></tr>');
+                    return;
+                }
+                var html = '';
+                // Get ratings for each restaurant (thật từ DB)
+                data.forEach(function(item) {
+                    var stars = '';
+                    var diem = Math.round(item.diemDanhGia || 0);
+                    for (var i = 0; i < 5; i++) stars += (i < diem ? '★' : '☆');
+                    var ratingHtml = '<span style="color:#ffc107;letter-spacing:1px;">' + stars + '</span>'
+                        + '<br><span style="font-size:11px;color:#6c757d;">(' + (item.soLuotDanhGia || 0) + ' đánh giá)</span>';
+                    html += '<tr>' +
+                        '<td><strong>' + item.tenQuan + '</strong></td>' +
+                        '<td class="text-center">' + item.soDon + '</td>' +
+                        '<td class="text-end text-success fw-bold">' + Number(item.doanhThu).toLocaleString('vi-VN') + ' VNĐ</td>' +
+                        '<td class="text-center">' + ratingHtml + '</td>' +
+                        '</tr>';
+                });
+                $('#revenueBody').html(html);
+            });
+
+            // 7. Load system stats
+            $.getJSON('@Url.Action("GetSystemStats", "Admin")', function (data) {
+                if (data.error) return;
+                $('#stat-tongQuan').text(data.tongQuan);
+                $('#stat-tongShipper').text(data.tongShipper);
+                $('#stat-shipperChoDuyet').text(data.shipperChoDuyet || 0);
+                $('#stat-tongKhach').text(data.tongKhach);
+                $('#stat-tongMon').text(data.tongMon);
+                $('#stat-tongDonAll').text(data.tongDonAll);
+                $('#stat-donHomNay').text(data.donHomNay || 0);
+                $('#stat-donThangNay').text(data.donThangNay || 0);
+                $('#stat-doanhThuHomNay').text((data.doanhThuHomNay || 0).toLocaleString('vi-VN') + ' VNĐ');
+                $('#stat-doanhThuThangNay').text((data.doanhThuThangNay || 0).toLocaleString('vi-VN') + ' VNĐ');
+            });
+
+            // 7b. Load category stats
+            $.getJSON('@Url.Action("GetCategoryStats", "Admin")', { fromDate: fromDate, toDate: toDate }, function (data) {
+                if (!data || data.length === 0) return;
+                var catLabels = data.map(function(d) { return d.tenDanhMuc; });
+                var catRevenue = data.map(function(d) { return d.doanhThu; });
+                var catSold = data.map(function(d) { return d.soLuong; });
+
+                // Add category chart after system stats
+                var catChartRow = $('#categoryChartRow');
+                if (!catChartRow.length) {
+                    // Create row dynamically
+                    $('#couponTable').closest('.col-md-6').after(
+                        '<div class="col-12 mb-4" id="categoryChartRow">'
+                        + '<div class="card chart-container shadow-sm">'
+                        + '<div class="card-header"><h4><i class="fas fa-chart-bar text-info me-2"></i>Doanh thu theo danh mục</h4></div>'
+                        + '<div class="card-body"><canvas id="categoryChart" height="220"></canvas></div>'
+                        + '</div></div>'
+                    );
+
+                    var catCtx = document.getElementById('categoryChart').getContext('2d');
+                    new Chart(catCtx, {
+                        type: 'bar',
+                        data: {
+                            labels: catLabels,
+                            datasets: [{
+                                label: 'Doanh thu (VNĐ)',
+                                data: catRevenue,
+                                backgroundColor: 'rgba(23, 162, 184, 0.7)',
+                                borderColor: '#17a2b8',
+                                borderWidth: 1
+                            }, {
+                                label: 'Số lượng bán',
+                                data: catSold,
+                                backgroundColor: 'rgba(255, 193, 7, 0.7)',
+                                borderColor: '#ffc107',
+                                borderWidth: 1,
+                                yAxisID: 'y1'
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            plugins: { legend: { position: 'top' } },
+                            scales: {
+                                y: { beginAtZero: true, ticks: { callback: function(v) { return v.toLocaleString('vi-VN'); } } },
+                                y1: { beginAtZero: true, position: 'right', grid: { drawOnChartArea: false } }
+                            }
+                        }
+                    });
+                } else {
+                    // Update existing chart
+                    if (window._categoryChart) window._categoryChart.destroy();
+                    var catCtx = document.getElementById('categoryChart').getContext('2d');
+                    window._categoryChart = new Chart(catCtx, { /* same config */ });
+                }
+            });
+
+            // 7c. Load hourly order stats
+            $.getJSON('@Url.Action("GetHourlyOrderStats", "Admin")', function (data) {
+                if (!data || data.length === 0) return;
+                var hours = data.map(function(d) { return d.gio + 'h'; });
+                var orders = data.map(function(d) { return d.soDon; });
+                var revenue = data.map(function(d) { return d.doanhThu; });
+
+                var hourlyRow = $('#hourlyChartRow');
+                if (!hourlyRow.length) {
+                    $('.row:has(#categoryChartRow)').after(
+                        '<div class="row" id="hourlyChartRow"><div class="col-12 mb-4">'
+                        + '<div class="card chart-container shadow-sm">'
+                        + '<div class="card-header"><h4><i class="fas fa-clock text-warning me-2"></i>Đơn hàng theo giờ (hôm nay)</h4></div>'
+                        + '<div class="card-body"><canvas id="hourlyChart" height="200"></canvas></div>'
+                        + '</div></div></div>'
+                    );
+
+                    var hourCtx = document.getElementById('hourlyChart').getContext('2d');
+                    new Chart(hourCtx, {
+                        type: 'line',
+                        data: {
+                            labels: hours,
+                            datasets: [{
+                                label: 'Số đơn',
+                                data: orders,
+                                borderColor: '#ffc107',
+                                backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                                fill: true,
+                                tension: 0.4
+                            }, {
+                                label: 'Doanh thu',
+                                data: revenue,
+                                borderColor: '#17a2b8',
+                                backgroundColor: 'rgba(23, 162, 184, 0.1)',
+                                fill: true,
+                                tension: 0.4,
+                                yAxisID: 'y1'
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            plugins: { legend: { position: 'top' } },
+                            scales: {
+                                y: { beginAtZero: true },
+                                y1: { beginAtZero: true, position: 'right', grid: { drawOnChartArea: false } }
+                            }
+                        }
+                    });
+                }
+            });
+
+            // Cập nhật lastUpdated badge
+            var now = new Date();
+            $('#lastUpdatedBadge').html('<i class="far fa-clock" aria-hidden="true"></i> Cập nhật lúc: '
+                + String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0') + ':' + String(now.getSeconds()).padStart(2,'0'));
+
+            // 8. Load active coupons
+            $.getJSON('@Url.Action("GetActiveCoupons", "Admin")', function (data) {
+                if (!data || data.length === 0) {
+                    $('#couponBody').html('<tr><td colspan="3" class="text-center text-muted">Không có khuyến mãi nào</td></tr>');
+                    return;
+                }
+                var html = '';
+                data.forEach(function(k) {
+                    var hsd = k.ngayketthuc ? new Date(k.ngayketthuc).toLocaleDateString('vi-VN') : 'Vô hạn';
+                    html += '<tr>' +
+                        '<td><span class="badge" style="background:#3CB815;color:#fff;padding:4px 10px;border-radius:6px;">' + k.tenkm + '</span></td>' +
+                        '<td class="text-center fw-bold text-danger">-' + k.phantramgiam + '%</td>' +
+                        '<td class="text-center" style="font-size:12px;color:#6c757d;">' + hsd + '</td>' +
+                        '</tr>';
+                });
+                $('#couponBody').html(html);
+            });
+        }
+
+        // ═══ SIGNALR: Lắng nghe dashboardStatsRefresh từ server ═══
+        (function() {
+            try {
+                var conn = new signalR.HubConnectionBuilder()
+                    .withUrl('/nhantin')
+                    .withAutomaticReconnect()
+                    .build();
+
+                conn.on('dashboardStatsRefresh', function() {
+                    console.log('🔄 Dashboard refresh via SignalR');
+                    loadDashboard();
+                });
+
+                conn.start().then(function() {
+                    conn.invoke('JoinAdminGroup', 0).catch(function(){});
+                    console.log('✅ Admin SignalR connected');
+                }).catch(function(err) {
+                    console.warn('⚠️ Admin SignalR:', err.message);
+                });
+            } catch (e) {
+                console.warn('⚠️ SignalR init failed:', e.message);
+            }
+        })();
+
+        // ═══ AUTO-REFRESH: Cập nhật dashboard mỗi 60 giây (fallback nếu SignalR lỗi) ═══
+        setInterval(function() {
+            loadDashboard();
+        }, 60000);
+    </script>
+}

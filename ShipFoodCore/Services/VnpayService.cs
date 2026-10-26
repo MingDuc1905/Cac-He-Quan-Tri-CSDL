@@ -1,0 +1,183 @@
+// ============================================================
+// 💳 VnpayService — Tích hợp thanh toán VNPAY (Sandbox)
+// ============================================================
+// Ý nghĩa: Service kết nối VNPAY API để tạo URL thanh toán và xác thực callback
+// Chức năng: CreatePaymentUrl, VerifySignature (HMAC SHA512), tạo secure hash
+// KEYWORDS: vnpay, payment, qr, sandbox, hmac, sha512, signature, thanh toán
+// ============================================================
+// 🔗 LUỒNG TƯƠNG TÁC (FLOW):
+//   Gọi bởi: PaymentController (CreateVnpayPayment, VnpayIPN, VnpayReturn, VnpayWalletReturn)
+//            HomeController (NapTienVnpay — nạp tiền ví)
+//   Gọi đến: VNPAY Sandbox API (https://sandbox.vnpayment.vn/paymentv2/vpcpay.html)
+//   CreatePaymentUrl: Build sorted params → HMAC SHA512 sign → return URL với secure hash
+//   VerifySignature: Lấy vnp_SecureHash → xoá khỏi params → HMAC SHA512 → so sánh
+//   Security: TMN_CODE + HASH_SECRET từ env var (VNPAY_TMN_CODE, VNPAY_HASH_SECRET)
+// ============================================================
+using System.Net;
+using System.Security.Cryptography;
+using System.Text;
+using ShipFood.Utils; // ponytail: TinhToan.GioVietNam — vnp_CreateDate phải theo giờ VN, không phải UTC server
+
+namespace ShipFood.Services;
+
+public class VnpayService
+{
+    // ════════════════════════════════════════════════════════════
+    // 💳 KHỐI CẤU HÌNH VNPAY (credentials)
+    // ════════════════════════════════════════════════════════════
+    // KEYWORDS: vnpay, tmn code, hash secret, sandbox, credentials
+    // → FILE: PaymentController.cs (ProcessPayment — tạo URL VNPAY cho đơn)
+    //         HomeController.cs (NapTienVnpay — nạp tiền ví)
+    // → ENV: VNPAY_TMN_CODE, VNPAY_HASH_SECRET, VNPAY_API_URL
+    // → MÚI GIỜ: vnp_CreateDate dùng TinhToan.GioVietNam() — VNPAY validate
+    //   theo giờ VN, gửi UTC sẽ bị tưởng hết hạn (lệch 7h)
+
+    private readonly ILogger<VnpayService> _logger;
+
+    private readonly string _baseUrl = "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html";
+    private readonly string _tmnCode;
+    private readonly string _hashSecret;
+    private readonly string _vnpayUrl;
+
+    public VnpayService(IConfiguration configuration, ILogger<VnpayService> logger)
+    {
+        _logger = logger;
+
+        _tmnCode = (Environment.GetEnvironmentVariable("VNPAY_TMN_CODE")
+            ?? configuration["VNPAY:TMN_CODE"]
+            ?? "").Trim();
+
+        _hashSecret = (Environment.GetEnvironmentVariable("VNPAY_HASH_SECRET")
+            ?? configuration["VNPAY:HASH_SECRET"]
+            ?? "").Trim();
+
+        _vnpayUrl = (Environment.GetEnvironmentVariable("VNPAY_API_URL")
+            ?? Environment.GetEnvironmentVariable("VNPAY_URL")
+            ?? configuration["VNPAY:URL"]
+            ?? _baseUrl).Trim();
+
+        if (string.IsNullOrEmpty(_tmnCode) || string.IsNullOrEmpty(_hashSecret))
+        {
+            _logger.LogWarning("VNPAY credentials not configured.");
+        }
+        else
+        {
+            _logger.LogInformation("VnpayService initialized (TMN_CODE: {CodeLen} chars, HashSecret: {HashLen} chars, URL: {Url})",
+                _tmnCode.Length, _hashSecret.Length, _vnpayUrl);
+        }
+    }
+
+    /// <summary>
+    /// Tạo URL thanh toán VNPAY: build sorted params → HMAC SHA512 sign → trả URL
+    /// </summary>
+    // KEYWORDS: create payment url, hmac sha512, signature, build params
+    // → FILE: PaymentController.ProcessPayment + HomeController.NapTienVnpay
+    // → TRẢ VỀ: chuỗi URL ("") nếu chưa cấu hình TMN_CODE → caller báo lỗi
+    public string CreatePaymentUrl(int orderId, long amount, string orderInfo, string ipAddress, string returnUrl)
+    {
+        if (string.IsNullOrEmpty(_tmnCode))
+        {
+            _logger.LogError("VNPAY_TMN_CODE is not configured");
+            return "";
+        }
+
+        var vnpParams = new SortedList<string, string>(StringComparer.Ordinal)
+        {
+            { "vnp_Amount", (amount * 100).ToString() },
+            { "vnp_Command", "pay" },
+            // ponytail: VNPAY validate theo giờ VN — gửi UTC sẽ lệch 7h khiến giao dịch tưởng đã hết hạn
+            { "vnp_CreateDate", TinhToan.GioVietNam(DateTime.UtcNow)?.ToString("yyyyMMddHHmmss") ?? DateTime.UtcNow.AddHours(7).ToString("yyyyMMddHHmmss") },
+            { "vnp_CurrCode", "VND" },
+            { "vnp_IpAddr", ipAddress },
+            { "vnp_Locale", "vn" },
+            { "vnp_OrderInfo", orderInfo },
+            { "vnp_OrderType", "other" },
+            { "vnp_ReturnUrl", returnUrl },
+            { "vnp_TmnCode", _tmnCode },
+            { "vnp_TxnRef", orderId.ToString() },
+            { "vnp_Version", "2.1.0" }
+        };
+
+        var data = new StringBuilder();
+        foreach (var kv in vnpParams)
+        {
+            if (!string.IsNullOrEmpty(kv.Value))
+                data.Append(WebUtility.UrlEncode(kv.Key) + "=" + WebUtility.UrlEncode(kv.Value) + "&");
+        }
+
+        var queryString = data.ToString();
+        var signData = queryString.Length > 0
+            ? queryString.Remove(queryString.Length - 1, 1)
+            : queryString;
+
+        var secureHash = HmacSHA512(_hashSecret, signData);
+
+        var paymentUrl = _vnpayUrl + "?" + queryString + "vnp_SecureHash=" + secureHash;
+
+        _logger.LogInformation("VNPAY URL created: TxnRef={TxnRef}, Amount={Amount}, HashLen={HashLen}",
+            orderId, amount, secureHash.Length);
+
+        return paymentUrl;
+    }
+
+    /// <summary>
+    /// Xác thực chữ ký từ callback VNPAY (IPN + Return URL) — HMAC SHA512
+    /// </summary>
+    // KEYWORDS: verify signature, hmac, callback, ipn, secure hash
+    // → FILE: PaymentController.VnpayIPN + VnpayReturn gọi để chắc chắn
+    //   callback thật từ VNPAY (không bị giả mạo)
+    public virtual bool VerifySignature(IDictionary<string, string> vnpParams)
+    {
+        if (!vnpParams.TryGetValue("vnp_SecureHash", out var receivedHash))
+        {
+            _logger.LogWarning("VNPAY callback missing vnp_SecureHash");
+            return false;
+        }
+
+        vnpParams.Remove("vnp_SecureHash");
+        vnpParams.Remove("vnp_SecureHashType");
+
+        var responseData = new SortedList<string, string>(StringComparer.Ordinal);
+        foreach (var kv in vnpParams)
+        {
+            if (!string.IsNullOrEmpty(kv.Value))
+                responseData.Add(kv.Key, kv.Value);
+        }
+
+        var data = new StringBuilder();
+        foreach (var kv in responseData)
+        {
+            if (!string.IsNullOrEmpty(kv.Value))
+                data.Append(WebUtility.UrlEncode(kv.Key) + "=" + WebUtility.UrlEncode(kv.Value) + "&");
+        }
+
+        if (data.Length > 0)
+            data.Remove(data.Length - 1, 1);
+
+        var rspRaw = data.ToString();
+        var myChecksum = HmacSHA512(_hashSecret, rspRaw);
+
+        var isValid = myChecksum.Equals(receivedHash, StringComparison.InvariantCultureIgnoreCase);
+
+        if (!isValid)
+        {
+            _logger.LogWarning(
+                "VNPAY signature FAILED. Computed({ComputedLen}): {Computed}, Received({ReceivedLen}): {Received}",
+                myChecksum.Length, myChecksum, receivedHash?.Length ?? 0, receivedHash);
+        }
+
+        return isValid;
+    }
+
+    private static string HmacSHA512(string key, string inputData)
+    {
+        var hash = new StringBuilder();
+        var keyBytes = Encoding.UTF8.GetBytes(key);
+        var inputBytes = Encoding.UTF8.GetBytes(inputData);
+        using var hmac = new HMACSHA512(keyBytes);
+        var hashValue = hmac.ComputeHash(inputBytes);
+        foreach (var theByte in hashValue)
+            hash.Append(theByte.ToString("x2"));
+        return hash.ToString();
+    }
+}

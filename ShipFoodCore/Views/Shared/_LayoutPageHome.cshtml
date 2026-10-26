@@ -1,0 +1,599 @@
+@using ShipFood.Models
+@inject ShipFood.Models.dbFoodyEntities _db
+@{
+    var userJson = Context.Session.GetString("user");
+    ShipFood.Models.tbUser? user = userJson != null ? JsonSerializer.Deserialize<tbUser>(userJson) : null;
+}
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <title>Fastship — Khám phá & đặt món, giao tận nơi tại TP.HCM</title>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <meta name="keywords" content="đặt đồ ăn, giao thức ăn, quán ăn Sài Gòn, Fastship" />
+    <meta name="description" content="Fastship — nền tảng đặt món và giao hàng nhanh tại TP. Hồ Chí Minh. Hàng trăm quán ăn, giao trong 30 phút." />
+    <link href="~/Source/Home/css/chat.css" rel="stylesheet" />
+    <!-- Favicon + PWA -->
+    <link href="~/Source/Home/img/favicon.ico" rel="icon" />
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#3CB815" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    @if (user != null)
+    {
+        <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+        <meta http-equiv="Pragma" content="no-cache" />
+        <meta http-equiv="Expires" content="0" />
+    }
+
+    <!-- Google Web Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Roboto:wght@400;500&display=swap" rel="stylesheet" />
+
+    <!-- Font Awesome 5 (CDN) — dùng CDN cloudflare, ko cần fallback local vì FA6 không tồn tại trong repo -->
+    <!-- Font Awesome 5 (CDN) — load m?t CDN duy nh?t + onerror fallback -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.10.0/css/all.min.css" rel="stylesheet" onerror="var s=document.createElement('link');s.rel='stylesheet';s.href='https://use.fontawesome.com/releases/v5.10.0/css/all.css';document.head.appendChild(s);console.warn('FA CDN fallback loaded from use.fontawesome.com');" />
+
+    <!-- Libraries Stylesheet -->
+    <link href="~/Source/Home/lib/animate/animate.min.css" rel="stylesheet" />
+    <link href="~/Source/Home/lib/owlcarousel/assets/owl.carousel.min.css" rel="stylesheet" />
+    <!-- Bootstrap — dùng local file (da duoc Cache-Control qua Program.cs) -->
+    <link href="~/Source/Home/css/bootstrap.min.css" rel="stylesheet" />
+
+    <!-- Template Stylesheet -->
+    <link href="~/Source/Home/css/style.css" rel="stylesheet" />
+
+    <!-- Sweetgreen-inspired overrides -->
+    <link href="~/Source/Home/css/layout-sg.css" rel="stylesheet" />
+
+    <!-- Global Design System v4.0 -->
+    <link href="~/Source/Shared/css/fastship-design-tokens.css" rel="stylesheet" />
+    <link href="~/Source/Shared/css/fastship-animations.css" rel="stylesheet" />
+
+    <!-- ─── Common color CSS variables (ponytail: reuse --fs-* tokens) ─── -->
+    <style>
+        .fs-hover-green:hover { border-color: var(--fs-green, #3CB815) !important; background: var(--fs-green-bg, rgba(60,184,21,.07)) !important; }
+        .fs-hover-danger:hover { background: #fef2f2 !important; border-color: #ef4444 !important; }
+        .fs-trans-x:hover { transform: translateX(4px); }
+        .fs-card-hover:hover { border-color: #3CB815 !important; box-shadow: 0 2px 12px rgba(60,184,21,.15) !important; }
+        .fs-btn-hover-green:hover { background: #2ea310 !important; border-color: #2ea310 !important; }
+
+        /* ─── User dropdown fix: không bị ẩn trong collapse ─── */
+        .fs-user-dropdown-toggle {
+            font-size: 13.5px; font-weight: 600; border: 1.5px solid var(--fs-green);
+            border-radius: 24px; padding: 6px 14px 6px 8px; color: #1a1a2e;
+            background: #fff; transition: all .2s; box-shadow: none; line-height: 1;
+        }
+        .fs-user-dropdown-toggle:hover, .fs-user-dropdown-toggle:focus, .fs-user-dropdown-toggle:active {
+            background: rgba(60,184,21,.07) !important; border-color: var(--fs-green) !important;
+            box-shadow: none !important; color: #1a1a2e !important;
+        }
+        .fs-user-dropdown-toggle.dropdown-toggle::after { margin-left: 4px; }
+        .fs-user-dropdown-menu {
+            border-radius: 12px; border: 1px solid #f0f0f0; padding: 6px 0;
+            box-shadow: 0 8px 32px rgba(0,0,0,.12); z-index: 1070 !important;
+        }
+        .fs-user-dropdown-menu .dropdown-item { border-radius: 8px; margin: 0 6px; padding: 8px 12px; font-size: 14px; transition: background .15s; }
+        .fs-user-dropdown-menu .dropdown-item:hover { background: rgba(60,184,21,.08); }
+        /* Fix dropdown inside Bootstrap collapse: không bị clip */
+        .navbar-collapse.show .dropdown .fs-user-dropdown-menu,
+        .navbar-collapse.collapsing .dropdown .fs-user-dropdown-menu {
+            position: absolute !important;
+            overflow: visible !important;
+        }
+        @@media (min-width: 992px) {
+            .navbar-nav .dropdown { position: relative; }
+            .navbar-nav .dropdown .fs-user-dropdown-menu { right: 0; left: auto; top: 100%; }
+        }
+    </style>
+
+    <!-- Auto aria-hidden cho FA icons (fix P11 — khỏi sửa từng icon th? công) -->
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('i.fa, i.fas, i.far, i.fab, i.fal').forEach(function(el) {
+            if (!el.hasAttribute('aria-hidden') && !el.getAttribute('aria-label')) {
+                el.setAttribute('aria-hidden', 'true');
+            }
+        });
+    });
+    </script>
+
+    <!-- ═══ Dark mode: CSS variables override (toggle ? layout) ═══ -->
+    <style>
+        html[data-theme="dark"] body {
+            background: #1a1a2e !important;
+            color: #e5e7eb !important;
+        }
+        html[data-theme="dark"] .fs-header,
+        html[data-theme="dark"] .fs-footer,
+        html[data-theme="dark"] .checkout-card,
+        html[data-theme="dark"] .order-summary,
+        html[data-theme="dark"] .wallet-mini-stat,
+        html[data-theme="dark"] .tx-item { background: #1f2937 !important; border-color: #374151 !important; }
+        html[data-theme="dark"] .navbar-light .navbar-nav .nav-link { color: #e5e7eb !important; }
+        html[data-theme="dark"] .text-muted { color: #9ca3af !important; }
+        html[data-theme="dark"] .dropdown-menu { background: #1f2937 !important; border-color: #374151 !important; }
+        html[data-theme="dark"] .dropdown-item { color: #e5e7eb !important; }
+        html[data-theme="dark"] .dropdown-item:hover { background: #374151 !important; }
+    </style>
+
+    <!-- ═══ Global JS error boundary (9.4) — catch l?i JS ko ch?p UI crash ═══ -->
+    <script>
+    window.addEventListener('error', function(e) {
+        console.error('[Global Error]', e.error || e.message);
+        // Không b?t silent — ch? log, UI v?n ch?y
+    });
+    window.addEventListener('unhandledrejection', function(e) {
+        console.error('[Unhandled Promise]', e.reason);
+        e.preventDefault();
+    });
+    </script>
+
+    @RenderSection("styles", required: false)
+</head>
+
+<body>
+    <!-- Login state cho JS (cart-local.js cần biết user đã login chưa) -->
+    <script>window._IS_LOGGED_IN = @(user != null ? "true" : "false");</script>
+
+    <!-- Skip-to-content link cho keyboard users -->
+    <a href="#main-content" class="skip-link">Bỏ qua điều hướng, đến nội dung chính</a>
+
+    <!-- Skeleton Loading (replaces old spinner) -->
+    <div id="fs-loading-skeleton" class="fs-skeleton-overlay" aria-hidden="true">
+        <div class="fs-skel-header">
+            <div class="fs-skel-logo fs-skeleton"></div>
+            <div class="fs-skel-search fs-skeleton"></div>
+            <div class="fs-skel-nav fs-skeleton"></div>
+        </div>
+        <div class="fs-skel-hero">
+            <div class="fs-skel-hero-img fs-skeleton"></div>
+            <div class="fs-skel-hero-text">
+                <div class="fs-skeleton" style="height:24px;width:60%;margin-bottom:12px"></div>
+                <div class="fs-skeleton" style="height:16px;width:40%"></div>
+            </div>
+        </div>
+        <div class="fs-skel-cards">
+            <div class="fs-skel-card fs-skeleton"></div>
+            <div class="fs-skel-card fs-skeleton"></div>
+            <div class="fs-skel-card fs-skeleton"></div>
+            <div class="fs-skel-card fs-skeleton"></div>
+        </div>
+    </div>
+    <!-- Skeleton End -->
+
+    <!-- ===== NAVBAR (z-index: 1050) ===== -->
+    <header class="fs-header" id="fsHeader" style="position:sticky;top:0;z-index:1050;background:#fff;box-shadow:0 2px 12px rgba(0,0,0,.06);">
+        <!-- Top info bar (desktop only) -->
+        <div class="fs-topbar d-none d-lg-block">
+            <div class="container-fluid px-5">
+                <div class="row align-items-center">
+                    <div class="col-lg-6 text-start">
+                        <small><i class="fa fa-map-marker-alt me-1"></i>48 Cao Thắng, Quận 3, TP. Hồ Chí Minh</small>
+                        <small class="ms-4"><i class="fa fa-envelope me-1"></i>fastship@contact.com</small>
+                    </div>
+                    <div class="col-lg-6 text-end">
+                        <div class="top-bar-right">
+                            <span>Theo dõi chúng tôi:</span>
+                            <a href="https://facebook.com/fastship" target="_blank" rel="noopener noreferrer" aria-label="Facebook">
+                                <svg aria-hidden="true" viewBox="0 0 36 36" width="12" height="12" fill="currentColor"><path d="M15 35.8C6.5 34.3 0 26.9 0 18 0 8.1 8.1 0 18 0s18 8.1 18 18c0 8.9-6.5 16.3-15 17.8l-1-.8h-4zm10-12.8.8-5H21v-3.5c0-1.4.5-2.5 2.7-2.5H26V7.4c-1.3-.2-2.7-.4-4-.4-4.1 0-7 2.5-7 7v4h-4.5v5H15v12.7q1.5.3 3 .3c1.5 0 2-.1 3-.3V23z"/></svg>
+                            </a>
+                            <a href="https://instagram.com/fastship" target="_blank" rel="noopener noreferrer" aria-label="Instagram">
+                                <svg aria-hidden="true" viewBox="0 0 100 100" width="12" height="12" fill="currentColor"><path d="M50.092 67.942a17.85 17.85 0 1 0 0-35.7 17.85 17.85 0 0 0 0 35.7m0-7.14a10.71 10.71 0 1 0 0-21.42 10.71 10.71 0 0 0 0 21.42"/><path d="M75.042 30.474a5.355 5.355 0 1 1-10.71 0 5.355 5.355 0 0 1 10.71 0"/><path d="M14.426 48.698c0-11.995 0-17.993 2.335-22.577a21.42 21.42 0 0 1 9.36-9.36c4.584-2.335 10.582-2.335 22.577-2.335h2.856c11.995 0 17.993 0 22.577 2.335a21.42 21.42 0 0 1 9.36 9.36c2.335 4.584 2.335 10.582 2.335 22.577v2.856c0 11.995 0 17.993-2.335 22.577a21.42 21.42 0 0 1-9.36 9.36c-4.584 2.335-10.582 2.335-22.577 2.335h-2.856c-11.995 0-17.993 0-22.577-2.335a21.42 21.42 0 0 1-9.36-9.36c-2.335-4.584-2.335-10.582-2.335-22.577zm34.272-27.132h2.856c6.115 0 10.274.007 13.487.268 3.131.257 4.73.72 5.848 1.289a14.28 14.28 0 0 1 6.24 6.24c.572 1.117 1.036 2.717 1.286 5.848.264 3.213.271 7.372.271 13.487v2.856c0 6.115-.007 10.274-.268 13.487-.257 3.131-.72 4.73-1.289 5.848a14.28 14.28 0 0 1-6.24 6.24c-1.117.572-2.717 1.036-5.848 1.286-3.213.264-7.372.271-13.487.271h-2.856c-6.115 0-10.274-.007-13.487-.268-3.131-.257-4.73-.72-5.848-1.289a14.28 14.28 0 0 1-6.24 6.24c-.572-1.117-1.036-2.717-1.286-5.848-.267-3.213-.271-7.372-.271-13.487v-2.856c0-6.115.007-10.274.268-13.487.257-3.131.72-4.73 1.289-5.848a14.28 14.28 0 0 1 6.24-6.24c1.117-.572 2.717-1.036 5.848-1.286 3.213-.264 7.372-.271 13.487-.271"/></svg>
+                            </a>
+                            <a href="https://tiktok.com/@@fastship" target="_blank" rel="noopener noreferrer" aria-label="TikTok">
+                                <svg aria-hidden="true" viewBox="0 0 100 100" width="12" height="12" fill="currentColor"><path d="M92.26 23.33a28.09 28.09 0 0 1-16.53-5.34 28.07 28.07 0 0 1-9.88-13.32 28.09 28.09 0 0 1-1.44-5.59H49.31v61.36a15.6 15.6 0 0 1-4.23 10.56 15.6 15.6 0 0 1-22.13 0 15.6 15.6 0 0 1 0-22.13 15.6 15.6 0 0 1 14.52-4.23V45.07A31.2 31.2 0 0 0 28 43.53 31.2 31.2 0 0 0 0 74.73a31.2 31.2 0 0 0 17.88 28.09 31.2 31.2 0 0 0 33.5-6.6 31.2 31.2 0 0 0 9.27-22.13V27.93a43.66 43.66 0 0 0 25.36 8.67V23.33h-1.59z"/></svg>
+                            </a>
+                            <a href="https://youtube.com/@@fastship" target="_blank" rel="noopener noreferrer" aria-label="YouTube">
+                                <svg aria-hidden="true" viewBox="0 0 256 180" width="12" height="12" fill="currentColor"><path d="M250.346 28.075A32.18 32.18 0 0 0 227.69 5.418C207.824 0 127.87 0 127.87 0S47.912.164 28.046 5.582A32.18 32.18 0 0 0 5.39 28.24c-6.009 35.298-8.34 89.084.165 122.97a32.18 32.18 0 0 0 22.656 22.657c19.866 5.418 99.822 5.418 99.822 5.418s79.955 0 99.82-5.418a32.18 32.18 0 0 0 22.657-22.657c6.338-35.348 8.291-89.1-.164-123.134Z"/><path fill="currentColor" d="m102.421 128.06 66.328-38.418-66.328-38.418z"/></svg>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main nav -->
+        <nav class="fs-nav navbar navbar-expand-lg navbar-light" aria-label="Điều hướng chính">
+            <div class="container-fluid px-3 px-lg-5">
+                <!-- Logo -->
+                <a href="/Home" class="navbar-brand fs-logo" aria-label="Fastship trang chủ">
+                    <span class="logo-f">F</span><span class="logo-ast">ast</span><span class="logo-ship">ship</span>
+                </a>
+
+                <!-- ═══ MOBILE HEADER: always visible icons (login/logout, cart, hamburger) ═══ -->
+                <div class="d-flex d-lg-none align-items-center ms-auto ms-lg-0 gap-2 me-1" style="position:relative; z-index:1080;">
+                    @if (user != null)
+                    {
+                        <!-- Avatar dropdown (mobile) -->
+                        <div class="dropdown">
+                            <button class="btn p-0 border-0 dropdown-toggle" type="button"
+                                    data-bs-toggle="dropdown" data-bs-auto-close="true" aria-expanded="false"
+                                    style="width:44px;height:44px;border-radius:50%;background:var(--fs-green);color:#fff;font-size:16px;font-weight:700;display:flex;align-items:center;justify-content:center;box-shadow:none;">
+                                @user.username.Substring(0,1).ToUpper()
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end fs-user-dropdown-menu" style="min-width:200px;">
+                                <li><span class="dropdown-item-text px-3 py-2" style="font-size:12px;color:#888;">Xin chào,</span></li>
+                                <li><span class="dropdown-item-text px-3 pb-2 fw-bold" style="font-size:15px;">@user.username</span></li>
+                                <li><hr class="dropdown-divider" style="margin:4px 16px;"></li>
+                                <li><a class="dropdown-item d-flex align-items-center gap-2 px-3 py-2" href="/Cart/LichSuDatHang"><i class="fa fa-history" style="width:18px;color:#6b7280;"></i> Lịch sử đơn hàng</a></li>
+                                <li><a class="dropdown-item d-flex align-items-center gap-2 px-3 py-2" href="/Home/Wallet"><i class="fa fa-wallet" style="width:18px;color:var(--fs-green);"></i> Ví tiền</a></li>
+                                <li><a class="dropdown-item d-flex align-items-center gap-2 px-3 py-2" href="/Home/Profile"><i class="fa fa-user" style="width:18px;color:#6b7280;"></i> Hồ sơ</a></li>
+                                @* ponytail: dung == thay .Equals() de tranh NullReferenceException khi loaitaikhoan null *@
+                                @if (user?.loaitaikhoan == "Quán ăn")
+                                {
+                                    <li><a class="dropdown-item d-flex align-items-center gap-2 px-3 py-2" href="/Restaurant"><i class="fa fa-store" style="width:18px;color:#6b7280;"></i> Quản lý quán</a></li>
+                                }
+                                @if (user?.loaitaikhoan == "Shipper")
+                                {
+                                    <li><a class="dropdown-item d-flex align-items-center gap-2 px-3 py-2" href="/Shipper"><i class="fa fa-truck" style="width:18px;color:#6b7280;"></i> Bảng điều khiển</a></li>
+                                }
+                                @if (user?.loaitaikhoan == "Admin")
+                                {
+                                    <li><a class="dropdown-item d-flex align-items-center gap-2 px-3 py-2" href="/Admin"><i class="fa fa-shield-alt" style="width:18px;color:#6b7280;"></i> Quản trị</a></li>
+                                }
+                                <li><hr class="dropdown-divider" style="margin:4px 16px;"></li>
+                                <li><a href="/Home/Logout" onclick="sessionStorage.clear(); localStorage.clear();" class="dropdown-item d-flex align-items-center gap-2 px-3 py-2" style="color:#ef4444;"><i class="fa fa-sign-out-alt" style="width:18px;"></i> Đăng xuất</a></li>
+                            </ul>
+                        </div>
+                    }
+                    else
+                    {
+                        <a href="/Home/Login" class="fs-mobile-login-btn fs-nav-hover" aria-label="Đăng nhập" title="Đăng nhập"
+                           style="display:flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:50%;color:#3CB815;font-size:18px;border:1.5px solid rgba(60,184,21,.3);text-decoration:none;">
+                            <i class="fa fa-sign-in-alt" aria-hidden="true"></i>
+                        </a>
+                    }
+                    <a class="fs-cart-btn" href="/Cart" aria-label="Giỏ hàng" id="navCartBtnMobile" style="position:relative; width:44px; height:44px; display:flex; align-items:center; justify-content:center; font-size:18px;">
+                        <i class="fa fa-shopping-bag"></i>
+                        <span class="fs-cart-badge" id="navCartBadgeMobile" style="display:none;position:absolute;top:-6px;right:-6px;background:#dc3545;color:#fff;width:20px;height:20px;border-radius:50%;font-size:11px;align-items:center;justify-content:center;font-weight:700;">0</span>
+                    </a>
+                    <button type="button" class="d-lg-none navbar-toggler border-0" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Mở menu">
+                        <span class="navbar-toggler-icon"></span>
+                    </button>
+                </div>
+
+                <!-- Search (visible inline on desktop) -->
+                @{
+                    var selectedIdDM = ViewBag.idDM as int?;
+                    List<tbDanhMuc> allDanhMuc = new List<tbDanhMuc>();
+                    try { allDanhMuc = _db.tbDanhMuc.ToList(); } catch { /* DB unavailable — skip category filter */ }
+                }
+                <div class="fs-search-wrap d-none d-lg-flex mx-auto">
+                    <form action="/Home" method="get" class="fs-search-form" role="search" aria-label="Tìm quán ăn">
+                        <select name="idDM" aria-label="Chọn danh mục">
+                            <option value="">Tất cả</option>
+                            @foreach (var item in allDanhMuc)
+                            {
+                                if (selectedIdDM.HasValue && selectedIdDM.Value == item.madanhmuc)
+                                {
+                                    <option value="@item.madanhmuc" selected>@item.tendanhmuc</option>
+                                }
+                                else
+                                {
+                                    <option value="@item.madanhmuc">@item.tendanhmuc</option>
+                                }
+                            }
+                        </select>
+                        <input type="text" value="@ViewBag.txtSearch" name="txtSearch" placeholder="Tìm món ăn, quán ăn..." aria-label="Từ khoá tìm kiếm" id="mainSearchInput" />
+                        <button type="submit" aria-label="Tìm kiếm"><i class="fa fa-search me-1"></i>Tìm</button>
+                    </form>
+                </div>
+
+                <!-- Collapse menu -->
+                <div class="collapse navbar-collapse" id="navbarCollapse">
+                    <!-- Mobile search inside collapse -->
+                    <div class="d-lg-none px-2 py-2">
+                        <form action="/Home" method="get" class="fs-search-form-mobile" role="search">
+                            <div class="input-group">
+                                <select name="idDM" class="form-select form-select-sm fs-select-mobile" aria-label="Danh mục">
+                                    <option value="">Tất cả</option>
+                                    @foreach (var item in allDanhMuc)
+                                    {
+                                        if (selectedIdDM.HasValue && selectedIdDM.Value == item.madanhmuc)
+                                        {
+                                            <option value="@item.madanhmuc" selected>@item.tendanhmuc</option>
+                                        }
+                                        else
+                                        {
+                                            <option value="@item.madanhmuc">@item.tendanhmuc</option>
+                                        }
+                                    }
+                                </select>
+                                <input type="text" value="@ViewBag.txtSearch" name="txtSearch" class="form-control form-control-sm" placeholder="Tìm quán ăn..." />
+                                <button type="submit" class="btn btn-success btn-sm px-3"><i class="fa fa-search"></i></button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Nav links -->
+                    <div class="navbar-nav ms-auto p-2 p-lg-0 align-items-lg-center">
+                        <a href="/Home" class="nav-item nav-link">Trang chủ</a>
+                        <a href="/Home/DanhMuc" class="nav-item nav-link">Menu ẩm thực</a>                            @if (user != null)
+                            {                        
+                            <!-- ═══ DESKTOP: user dropdown ═══ -->
+                            <div class="d-none d-lg-flex align-items-center ms-lg-2 dropdown">
+                                <button class="btn dropdown-toggle d-flex align-items-center gap-1 px-2 py-1 fs-user-dropdown-toggle" type="button"
+                                        data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
+                                    <span style="width:30px;height:30px;border-radius:50%;background:var(--fs-green);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;">@user.username.Substring(0,1).ToUpper()</span>
+                                    <span class="d-none d-lg-inline" style="font-size:13px;font-weight:500;line-height:1;color:#1a1a2e;">@user.username</span>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end fs-user-dropdown-menu" style="min-width:200px;">
+                                    <li><span class="dropdown-item-text px-3 py-2" style="font-size:12px;color:#888;">Xin chào,</span></li>
+                                    <li><span class="dropdown-item-text px-3 pb-2 fw-bold" style="font-size:15px;">@user.username</span></li>
+                                    <li><hr class="dropdown-divider" style="margin:4px 16px;"></li>
+                                    <li><a class="dropdown-item d-flex align-items-center gap-2 px-3 py-2" href="/Cart/LichSuDatHang"><i class="fa fa-history" style="width:18px;color:#6b7280;"></i> Lịch sử đơn hàng</a></li>
+                                    <li><a class="dropdown-item d-flex align-items-center gap-2 px-3 py-2" href="/Home/Wallet"><i class="fa fa-wallet" style="width:18px;color:var(--fs-green);"></i> Ví tiền</a></li>
+                                    <li><a class="dropdown-item d-flex align-items-center gap-2 px-3 py-2" href="/Home/Profile"><i class="fa fa-user" style="width:18px;color:#6b7280;"></i> Hồ sơ</a></li>
+                                    @if (user?.loaitaikhoan == "Quán ăn")
+                                    {
+                                        <li><a class="dropdown-item d-flex align-items-center gap-2 px-3 py-2" href="/Restaurant"><i class="fa fa-store" style="width:18px;color:#6b7280;"></i> Quản lý quán</a></li>
+                                    }
+                                    @if (user?.loaitaikhoan == "Shipper")
+                                    {
+                                        <li><a class="dropdown-item d-flex align-items-center gap-2 px-3 py-2" href="/Shipper"><i class="fa fa-truck" style="width:18px;color:#6b7280;"></i> Bảng điều khiển</a></li>
+                                    }
+                                    @if (user?.loaitaikhoan == "Admin")
+                                    {
+                                        <li><a class="dropdown-item d-flex align-items-center gap-2 px-3 py-2" href="/Admin"><i class="fa fa-shield-alt" style="width:18px;color:#6b7280;"></i> Quản trị</a></li>
+                                    }
+                                    <li><hr class="dropdown-divider" style="margin:4px 16px;"></li>
+                                    <li><a href="/Home/Logout" onclick="sessionStorage.clear(); localStorage.clear();" class="dropdown-item d-flex align-items-center gap-2 px-3 py-2" style="color:#ef4444;"><i class="fa fa-sign-out-alt" style="width:18px;"></i> Đăng xuất</a></li>
+                                </ul>
+                            </div>
+                        }
+                        else
+                        {
+                            <!-- ═══ DESKTOP login button — visible tr?n desktop, ko mobile (fix P14/P15) ═══ -->
+                            <div class="d-none d-lg-flex align-items-center gap-1 gap-lg-2">
+                                <a href="/Home/Login" class="nav-link fs-nav-hover" style="font-size:13.5px;font-weight:600;border:1.5px solid var(--fs-green);border-radius:24px;padding:6px 16px;color:var(--fs-green);">
+                                    <i class="fa fa-sign-in-alt"></i>
+                                    <span class="d-none d-lg-inline">Đăng nhập</span>
+                                </a>
+                                <a href="/Home/Signup" class="nav-link fs-nav-hover" style="font-size:13.5px;font-weight:600;background:var(--fs-green);color:#fff;border-radius:24px;padding:6px 16px;border:1.5px solid var(--fs-green);">
+                                    <i class="fa fa-user-plus"></i>
+                                    <span class="d-none d-lg-inline">Đăng ký</span>
+                                </a>
+                            </div>
+                        }
+
+                        <a class="fs-cart-btn d-none d-lg-flex ms-2" href="/Cart" aria-label="Giỏ hàng" id="navCartBtn" style="position:relative;">
+                            <i class="fa fa-shopping-bag"></i>
+                            <span class="fs-cart-badge" id="navCartBadge" style="display:none;position:absolute;top:-6px;right:-4px;background:#dc3545;color:#fff;width:20px;height:20px;border-radius:50%;font-size:10px;align-items:center;justify-content:center;font-weight:700;box-shadow:0 2px 4px rgba(220,53,69,.3);border:2px solid #fff;">0</span>
+                            <noscript><span style="position:absolute;top:-6px;right:-4px;background:#dc3545;color:#fff;width:20px;height:20px;border-radius:50%;font-size:10px;display:flex;align-items:center;justify-content:center;font-weight:700;">?</span></noscript>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </nav>
+    </header>
+    <!-- ===== END NAVBAR ===== -->
+
+    <!-- Main content -->
+    <main id="main-content">
+        @RenderBody()
+    </main>
+
+    <!-- ===== FOOTER v5 — clean 3-column ===== -->
+    <footer class="fs-footer">
+        <div class="fs-footer-main">
+            <div class="container">
+                <div class="row gy-4">
+                    <!-- Col 1: Brand + App Download + Social -->
+                    <div class="col-lg-4 col-md-6">
+                        <a href="/Home" class="fs-logo mb-3 d-inline-block">
+                            <span class="logo-f">F</span><span class="logo-ast">ast</span><span class="logo-ship">ship</span>
+                        </a>
+                        <p class="small mb-3" style="color:var(--fs-muted);">Nền tảng đặt món &amp; giao hàng nhanh tại TP. Hồ Chí Minh.</p>
+
+                        <div class="fs-footer-apps">
+                            <a href="#" class="fs-footer-app-btn" aria-label="Tải trên App Store">
+                                <i class="fab fa-apple"></i>
+                                <span><small>Tải về trên</small><strong>App Store</strong></span>
+                            </a>
+                            <a href="#" class="fs-footer-app-btn" aria-label="Tải trên Google Play">
+                                <i class="fab fa-google-play"></i>
+                                <span><small>Tải về trên</small><strong>Google Play</strong></span>
+                            </a>
+                        </div>
+
+                        <div class="fs-social-links mt-3">
+                            <a href="https://facebook.com/fastship" target="_blank" rel="noopener noreferrer" aria-label="Facebook">
+                                <svg aria-hidden="true" viewBox="0 0 36 36" width="12" height="12" fill="currentColor"><path d="M15 35.8C6.5 34.3 0 26.9 0 18 0 8.1 8.1 0 18 0s18 8.1 18 18c0 8.9-6.5 16.3-15 17.8l-1-.8h-4zm10-12.8.8-5H21v-3.5c0-1.4.5-2.5 2.7-2.5H26V7.4c-1.3-.2-2.7-.4-4-.4-4.1 0-7 2.5-7 7v4h-4.5v5H15v12.7q1.5.3 3 .3c1.5 0 2-.1 3-.3V23z"/></svg>
+                            </a>
+                            <a href="https://instagram.com/fastship" target="_blank" rel="noopener noreferrer" aria-label="Instagram">
+                                <svg aria-hidden="true" viewBox="0 0 100 100" width="12" height="12" fill="currentColor"><path d="M50.092 67.942a17.85 17.85 0 1 0 0-35.7 17.85 17.85 0 0 0 0 35.7m0-7.14a10.71 10.71 0 1 0 0-21.42 10.71 10.71 0 0 0 0 21.42"/><path d="M75.042 30.474a5.355 5.355 0 1 1-10.71 0 5.355 5.355 0 0 1 10.71 0"/><path d="M14.426 48.698c0-11.995 0-17.993 2.335-22.577a21.42 21.42 0 0 1 9.36-9.36c4.584-2.335 10.582-2.335 22.577-2.335h2.856c11.995 0 17.993 0 22.577 2.335a21.42 21.42 0 0 1 9.36 9.36c2.335 4.584 2.335 10.582 2.335 22.577v2.856c0 11.995 0 17.993-2.335 22.577a21.42 21.42 0 0 1-9.36 9.36c-4.584 2.335-10.582 2.335-22.577 2.335h-2.856c-11.995 0-17.993 0-22.577-2.335a21.42 21.42 0 0 1-9.36-9.36c-2.335-4.584-2.335-10.582-2.335-22.577zm34.272-27.132h2.856c6.115 0 10.274.007 13.487.268 3.131.257 4.73.72 5.848 1.289a14.28 14.28 0 0 1 6.24 6.24c.572 1.117 1.036 2.717 1.286 5.848.264 3.213.271 7.372.271 13.487v2.856c0 6.115-.007 10.274-.268 13.487-.257 3.131-.72 4.73-1.289 5.848a14.28 14.28 0 0 1-6.24 6.24c-1.117.572-2.717 1.036-5.848 1.286-3.213.264-7.372.271-13.487.271h-2.856c-6.115 0-10.274-.007-13.487-.268-3.131-.257-4.73-.72-5.848-1.289a14.28 14.28 0 0 1-6.24 6.24c-.572-1.117-1.036-2.717-1.286-5.848-.267-3.213-.271-7.372-.271-13.487v-2.856c0-6.115.007-10.274.268-13.487.257-3.131.72-4.73 1.289-5.848a14.28 14.28 0 0 1 6.24-6.24c1.117-.572 2.717-1.036 5.848-1.286 3.213-.264 7.372-.271 13.487-.271"/></svg>
+                            </a>
+                            <a href="https://tiktok.com/@@fastship" target="_blank" rel="noopener noreferrer" aria-label="TikTok">
+                                <svg aria-hidden="true" viewBox="0 0 100 100" width="12" height="12" fill="currentColor"><path d="M92.26 23.33a28.09 28.09 0 0 1-16.53-5.34 28.07 28.07 0 0 1-9.88-13.32 28.09 28.09 0 0 1-1.44-5.59H49.31v61.36a15.6 15.6 0 0 1-4.23 10.56 15.6 15.6 0 0 1-22.13 0 15.6 15.6 0 0 1 0-22.13 15.6 15.6 0 0 1 14.52-4.23V45.07A31.2 31.2 0 0 0 28 43.53 31.2 31.2 0 0 0 0 74.73a31.2 31.2 0 0 0 17.88 28.09 31.2 31.2 0 0 0 33.5-6.6 31.2 31.2 0 0 0 9.27-22.13V27.93a43.66 43.66 0 0 0 25.36 8.67V23.33h-1.59z"/></svg>
+                            </a>
+                            <a href="https://youtube.com/@@fastship" target="_blank" rel="noopener noreferrer" aria-label="YouTube">
+                                <svg aria-hidden="true" viewBox="0 0 256 180" width="12" height="12" fill="currentColor"><path d="M250.346 28.075A32.18 32.18 0 0 0 227.69 5.418C207.824 0 127.87 0 127.87 0S47.912.164 28.046 5.582A32.18 32.18 0 0 0 5.39 28.24c-6.009 35.298-8.34 89.084.165 122.97a32.18 32.18 0 0 0 22.656 22.657c19.866 5.418 99.822 5.418 99.822 5.418s79.955 0 99.82-5.418a32.18 32.18 0 0 0 22.657-22.657c6.338-35.348 8.291-89.1-.164-123.134Z"/><path fill="currentColor" d="m102.421 128.06 66.328-38.418-66.328-38.418z"/></svg>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Col 2: Điều hướng (2 cột con) -->
+                    <div class="col-lg-4 col-md-6">
+                        <div class="row">
+                            <div class="col-6">
+                                <h6 class="fs-footer-heading">Khám phá</h6>
+                                <ul class="list-unstyled fs-footer-links">
+                                    <li><a href="/Home">Trang chủ</a></li>
+                                    <li><a href="/Home/DanhMuc">Menu ẩm thực</a></li>
+                                    <li><a href="/Cart">Giỏ hàng</a></li>
+                                    <li><a href="/Cart/LichSuDatHang">Lịch sử đơn</a></li>
+                                </ul>
+                            </div>
+                            <div class="col-6">
+                                <h6 class="fs-footer-heading">Hỗ trợ</h6>
+                                <ul class="list-unstyled fs-footer-links">
+                                    <li><a href="/Home/Contact">Liên hệ</a></li>
+                                    <li><a href="/Home/About">Về chúng tôi</a></li>
+                                    <li><a href="#">Chính sách bảo mật</a></li>
+                                    <li><a href="#">Điều khoản</a></li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Col 3: Liên hệ -->
+                    <div class="col-lg-4 col-md-12">
+                        <h6 class="fs-footer-heading">Liên hệ</h6>
+                        <ul class="list-unstyled fs-footer-links fs-contact-list">
+                            <li><i class="fa fa-map-marker-alt"></i>48 Cao Thắng, Quận 3, TP. Hồ Chí Minh</li>
+                            <li><i class="fa fa-phone-alt"></i><a href="tel:19001234">1900 1234</a></li>
+                            <li><i class="fa fa-envelope"></i><a href="mailto:fastship@contact.com">fastship@contact.com</a></li>
+                            <li><i class="fa fa-clock"></i>7:00 — 23:00, Thứ 2 — Chủ nhật</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer bottom bar -->
+        <div class="fs-footer-bottom">
+            <div class="container">
+                <div class="row align-items-center">
+                    <div class="col-md-6 text-center text-md-start">
+                        <small>&copy; @DateTime.Now.Year Fastship. Bảo lưu mọi quyền.</small>
+                    </div>
+                    <div class="col-md-6 text-center text-md-end mt-2 mt-md-0">
+                        <small>Được làm với <i class="fa fa-heart text-danger"></i> tại Sài Gòn</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </footer>
+    <!-- ===== END FOOTER ===== -->
+
+    <!-- Back to top — dịch lên trên chat toggle (bottom: 24px) để ko overlap -->
+    <!-- Back to top — z-index: 1040 (above header 1050? actually below it — safe 1040) -->
+    <a href="#" class="btn btn-success back-to-top" aria-label="Lên đầu trang" style="bottom:96px;z-index:1040;"><i class="fa fa-angle-up"></i></a>
+
+    <!-- JavaScript Libraries (CDN) -->
+    <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/Source/Home/lib/wow/wow.min.js"></script>
+    <script src="~/Source/Home/lib/easing/easing.min.js"></script>
+    <script src="~/Source/Home/lib/waypoints/waypoints.min.js"></script>
+    <script src="~/Source/Home/lib/owlcarousel/owl.carousel.min.js"></script>
+    <!-- Template Javascript -->
+    <script src="~/Source/Home/js/main.js"></script>
+    
+    <!-- FastShip Modules -->
+    <script src="~/js/filter.js"></script>
+    <script src="~/js/cart-local.js"></script>
+    <script src="~/js/map.js"></script>
+
+    <!-- ═══ PWA: Service Worker + Dark Mode Toggle ═══ -->
+    <script>
+    // ponytail: Tự động xoá Service Worker cũ rác và ép tải mới bằng timestamp để không bao giờ bị kẹt Cache 24h
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(registrations) {
+            for(let registration of registrations) {
+                registration.unregister();
+            }
+        });
+        navigator.serviceWorker.register('/sw.js?v=' + new Date().getTime()).catch(function(err) {
+            console.warn('SW registration failed:', err);
+        });
+    }
+    // ponytail: dark mode toggle
+    function toggleDarkMode() {
+        var html = document.documentElement;
+        var current = html.getAttribute('data-theme') || 'light';
+        var next = current === 'dark' ? 'light' : 'dark';
+        html.setAttribute('data-theme', next);
+        localStorage.setItem('fastship-theme', next);
+    }
+    (function() {
+        var saved = localStorage.getItem('fastship-theme');
+        if (saved === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+    })();
+    </script>
+
+    <!-- ═══ Lazy loading cho t?t c? <img> (native browser support) ═══ -->
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('img:not([loading])').forEach(function(img) {
+            img.setAttribute('loading', 'lazy');
+        });
+    });
+    </script>
+    
+    @RenderSection("scripts", required: false)
+
+    <!-- ─── Task 2d: Search Autocomplete Debounce 300ms ─── -->
+    <script>
+    (function() {
+        var searchInput = document.querySelector('input[name="txtSearch"]');
+        var searchForm = document.querySelector('.fs-search-form');
+        if (!searchInput || !searchForm) return;
+
+        var debounceTimer;
+        var autocompleteBox = document.createElement('div');
+        autocompleteBox.className = 'fs-autocomplete';
+        autocompleteBox.style.cssText = 'position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #e5e7eb;border-radius:0 0 12px 12px;box-shadow:0 8px 24px rgba(0,0,0,0.1);z-index:1080;display:none;max-height:360px;overflow-y:auto;';
+        searchForm.style.position = 'relative';
+        searchForm.appendChild(autocompleteBox);
+
+        searchInput.addEventListener('input', function() {
+            clearTimeout(debounceTimer);
+            var q = this.value.trim();
+            if (q.length < 2) { autocompleteBox.style.display = 'none'; return; }
+
+            debounceTimer = setTimeout(function() {
+                $.ajax({
+                    url: '/Home/SearchAutocomplete',
+                    type: 'GET',
+                    data: { q: q },
+                    success: function(res) {
+                        if (!res || !res.length) {
+                            autocompleteBox.innerHTML = '<div style="padding:16px;text-align:center;color:#888;font-size:13px;"><i class="fas fa-search-minus" style="margin-right:4px;"></i>Không tìm thấy món ăn hoặc quán ăn phù hợp</div>';
+                            autocompleteBox.style.display = 'block';
+                            return;
+                        }
+                        autocompleteBox.innerHTML = '';
+                        res.forEach(function(item) {
+                            var a = document.createElement('a');
+                            a.href = '/Home/DetailRestaurant/' + item.id;
+                            a.className = 'd-flex align-items-center gap-3 px-3 py-2 text-decoration-none';
+                            a.style.cssText = 'display:flex;align-items:center;gap:12px;padding:8px 16px;text-decoration:none;color:#333;border-bottom:1px solid #f0f0f0;transition:background .15s;';
+                            a.onmouseenter = function(){ this.style.background = '#f5f6fa'; };
+                            a.onmouseleave = function(){ this.style.background = ''; };
+                            a.innerHTML = '<div style="width:40px;height:40px;border-radius:8px;overflow:hidden;flex-shrink:0;background:#eee;display:flex;align-items:center;justify-content:center;font-size:18px;">' + (item.icon || '<i class="fas fa-utensils" style="color:#888;"></i>') + '</div>'
+                                + '<div style="flex:1;min-width:0">'
+                                + '<div style="font-size:14px;font-weight:600;color:#111;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escHtml(item.name) + '</div>'
+                                + '<div style="font-size:12px;color:#888;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escHtml(item.address || '') + '</div>'
+                                + '</div>'
+                                + '<span style="font-size:13px;color:#3CB815;font-weight:600;white-space:nowrap;">' + (item.rating || '') + '</span>';
+                            autocompleteBox.appendChild(a);
+                        });
+                        autocompleteBox.style.display = 'block';
+                    },
+                    error: function() { autocompleteBox.style.display = 'none'; }
+                });
+            }, 300); // ─── 300ms debounce ───
+        });
+
+        // Hide on click outside
+        document.addEventListener('click', function(e) {
+            if (!searchForm.contains(e.target)) autocompleteBox.style.display = 'none';
+        });
+
+        // Hide on form submit
+        searchForm.addEventListener('submit', function() { autocompleteBox.style.display = 'none'; });
+
+        function escHtml(str) {
+            if (!str) return '';
+            var d = document.createElement('div'); d.textContent = str; return d.innerHTML;
+        }
+    })();
+    </script>
+
+    <!-- Chat Widget -->
+    @await Html.PartialAsync("_ChatWidget")
+</body>
+</html>

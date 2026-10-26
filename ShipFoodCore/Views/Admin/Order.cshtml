@@ -1,0 +1,145 @@
+@model List<ShipFood.Models.tbDonHang>
+@{
+    ViewBag.Title = "Đơn hàng";
+    Layout = "~/Views/Shared/_LayoutPageAdmin.cshtml";
+}
+
+<style>
+    .order-status {
+        display: inline-block; padding: 4px 14px; border-radius: 20px;
+        font-size: 12px; font-weight: 600;
+        font-family: var(--fs-font, 'Inter', sans-serif);
+    }
+    .order-status.success { background: #f0fdf4; color: #16a34a; }
+    .order-status.warning { background: #fefce8; color: #d97706; }
+    .order-status.danger { background: #fef2f2; color: #dc2626; }
+    .order-status.info { background: #dbeafe; color: #2563eb; }
+    .order-status.primary { background: #e0e7ff; color: #4338ca; }
+
+    @@media (max-width: 768px) {
+        .order-table thead { position: absolute; top: -9999px; left: -9999px; }
+        .order-table tr {
+            display: block; background: var(--fs-white); border-radius: var(--fs-radius);
+            margin-bottom: 12px; padding: 16px;
+            box-shadow: var(--fs-shadow-sm);
+            border: 1px solid var(--fs-border-soft);
+        }
+        .order-table td {
+            display: flex; align-items: center; padding: 6px 0 !important;
+            border: none !important; min-height: auto !important;
+        }
+        .order-table td:before {
+            content: attr(data-label);
+            width: 100px; font-weight: 600; color: var(--fs-muted);
+            flex-shrink: 0;
+        }
+    }
+</style>
+
+<div class="content-body">
+    <div class="container-fluid">
+        <div class="page-header">
+            <h2><i class="fas fa-shopping-cart fs-text-green me-2"></i>Danh sách đơn hàng</h2>
+            <span class="fs-badge fs-badge-neutral">
+                <i class="fas fa-info-circle me-1"></i> Chỉ đơn có shipper mới xem được chi tiết
+            </span>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table order-table">
+                        <thead>
+                            <tr>
+                                <th>Đơn hàng</th>
+                                <th>Ngày</th>
+                                <th>Khách hàng</th>
+                                <th>Trạng thái</th>
+                                <th>Tổng tiền</th>
+                                <th style="width:80px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach(var item in Model) {
+                                var statusClass = "primary";
+                                var statusIcon = "fa-clock";
+                                if (item.trangthai == "Hoàn thành") { statusClass = "success"; statusIcon = "fa-check"; }
+                                else if (item.trangthai == "Đã hủy") { statusClass = "danger"; statusIcon = "fa-times"; }
+                                else if (item.trangthai == "Đang giao" || item.trangthai == "Đã lấy") { statusClass = "info"; statusIcon = "fa-truck"; }
+                                else if (item.trangthai == "Chờ thanh toán") { statusClass = "warning"; statusIcon = "fa-hourglass"; }
+
+                                <tr>
+                                    <td data-label="Đơn hàng">
+                                        <strong style="color:#1a1a2e;">#@item.madh</strong>
+                                        <br /><small style="color:#6b7280;">@(item.tbQuanAn?.tenquanan ?? "N/A")</small>
+                                    </td>
+                                    <td data-label="Ngày">@(TinhToan.GioVietNam(item.ngaydathang)?.ToString("dd/MM/yyyy HH:mm") ?? "N/A")</td>
+                                    <td data-label="Khách hàng">
+                                        <strong>@(item.tbThongTinDatHang?.tennguoinhan ?? "N/A")</strong>
+                                        <br /><small style="color:#6b7280;">Shipper: @(item.tbShipper?.tenshipper ?? "Trống")</small>
+                                    </td>
+                                    <td data-label="Trạng thái">
+                                        <span class="order-status @statusClass">
+                                            <i class="fas @statusIcon"></i> @item.trangthai
+                                        </span>
+                                    </td>
+                                    <td data-label="Tổng tiền" style="font-weight:600;color:#1a1a2e;">@item.tongtien?.ToString("N0")đ</td>
+                                    <td data-label="">
+                                        <div class="d-flex gap-1">
+                                            <a href="@Url.Action("OrderDetail","Admin", new { id = item.madh })" class="btn btn-outline btn-sm">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <a href="@Url.Action("EditOrder","Admin", new { id = item.madh })" class="btn btn-success btn-sm">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        @if (!Model.Any())
+        {
+            <div class="fs-empty-state">
+                <span class="fs-empty-state-icon"><i class="fas fa-box"></i></span>
+                <h5>Chưa có đơn hàng</h5>
+                <p>Chưa có đơn hàng nào trong hệ thống.</p>
+            </div>
+        }
+    </div>
+</div>
+
+@section scripts {
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+<script>
+$(document).ready(function() {
+    var conn = new signalR.HubConnectionBuilder()
+        .withUrl('/nhantin').withAutomaticReconnect().build();
+
+    conn.on('newOrder', function(data) {
+        var toast = $('<div style="position:fixed;top:80px;right:20px;z-index:9999;background:#3CB815;color:#fff;padding:14px 20px;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,.2);font-size:13px;max-width:380px;">'
+            + '<strong><i class="fas fa-box" style="margin-right:6px;"></i>Đơn hàng mới!</strong><br>'
+            + 'Mã ĐH: #' + data.orderId + ' — ' + (data.customerName || 'Khách') + '<br>'
+            + '<small>' + (data.totalAmount || 0).toLocaleString('vi-VN') + ' đ</small>'
+            + '</div>');
+        $('body').append(toast);
+        setTimeout(function(){ toast.fadeOut(400, function(){ $(this).remove(); }); }, 6000);
+        setTimeout(function() { location.reload(); }, 2000);
+    });
+
+    conn.on('orderStatusChanged', function(madh) {
+        $('a[href*="OrderDetail?id=' + madh + '"]').closest('tr').css('background', '#fffde7');
+        setTimeout(function() { $('a[href*="OrderDetail?id=' + madh + '"]').closest('tr').css('background', ''); }, 3000);
+    });
+
+    conn.onreconnected(function() {
+        console.log('Admin SignalR reconnected');
+    });
+
+    conn.start().catch(function(err) { console.error('Admin SignalR:', err); });
+});
+</script>
+}

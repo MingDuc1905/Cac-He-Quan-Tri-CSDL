@@ -1,0 +1,670 @@
+﻿@model ShipFood.Models.DonHangDangLam
+@{
+    ViewBag.Title = "OrderDetail";
+    Layout = "~/Views/Shared/_LayoutPageShipper.cshtml";
+    var userJson = Context.Session.GetString("user");
+    ShipFood.Models.tbUser? user = userJson != null ? System.Text.Json.JsonSerializer.Deserialize<ShipFood.Models.tbUser>(userJson) : null;
+    var loggedIn = user != null && user.userid > 0;
+}
+
+@{ List<ShipFood.Models.tbChiTietDonHang> listctdh = ViewBag.listctdh;
+    ShipFood.Models.tbDonHang dh = ViewBag.dh;
+    int? customerId = dh.tbThongTinDatHang?.userid;
+}
+
+<style>
+    @@keyframes shimmer {
+        0% { background-position: -200% 0; }
+        100% { background-position: 200% 0; }
+    }
+
+    /* ═══ Shipper Chat Floating Panel ═══ */
+    .shipper-chat-btn { position:fixed; bottom:24px; right:24px; width:56px; height:56px; border-radius:50%; background:linear-gradient(135deg,#3CB815,#27a001); color:#fff; border:none; box-shadow:0 4px 16px rgba(60,184,21,.4); display:flex; align-items:center; justify-content:center; font-size:22px; cursor:pointer; z-index:999; transition:transform .2s,box-shadow .2s; }
+    .shipper-chat-btn:hover { transform:scale(1.08); box-shadow:0 6px 24px rgba(60,184,21,.5); }
+    .shipper-chat-btn:active { transform:scale(.95); }
+    .shipper-chat-btn .badge-chat { position:absolute; top:-4px; right:-4px; width:20px; height:20px; border-radius:50%; background:#e74c3c; color:#fff; font-size:10px; display:flex; align-items:center; justify-content:center; font-weight:700; }
+
+    .shipper-chat-panel { position:fixed; bottom:0; right:0; width:400px; max-width:100vw; max-height:75vh; background:#fff; border-radius:20px 20px 0 0; box-shadow:0 -4px 30px rgba(0,0,0,.15); z-index:1000; display:none; flex-direction:column; transform:translateY(100%); transition:transform .35s cubic-bezier(.32,.72,0,1); overflow:hidden; }
+    .shipper-chat-panel.open { display:flex; transform:translateY(0); }
+    @@media (max-width:576px) { .shipper-chat-panel { width:100vw; max-height:85vh; border-radius:16px 16px 0 0; } }
+
+    .shipper-chat-header { display:flex; align-items:center; justify-content:space-between; padding:12px 16px; background:linear-gradient(135deg,#3CB815,#27a001); color:#fff; flex-shrink:0; cursor:pointer; }
+    .shipper-chat-header h6 { margin:0; font-weight:600; font-size:14px; }
+    .shipper-chat-header button { background:none; border:none; color:#fff; font-size:16px; cursor:pointer; opacity:.8; padding:4px; }
+    .shipper-chat-header button:hover { opacity:1; }
+
+    .shipper-chat-msgs { flex:1; overflow-y:auto; padding:12px 14px; background:#f8f9fa; min-height:180px; max-height:320px; }
+    .shipper-chat-msgs::-webkit-scrollbar { width:4px; }
+    .shipper-chat-msgs::-webkit-scrollbar-thumb { background:rgba(0,0,0,.1); border-radius:4px; }
+
+    .s-msg { margin-bottom:8px; max-width:85%; padding:8px 12px; border-radius:12px; font-size:13px; line-height:1.5; word-wrap:break-word; clear:both; }
+    .s-msg.own { float:right; background:linear-gradient(135deg,#3CB815,#2ea310); color:#fff; border-bottom-right-radius:4px; }
+    .s-msg.other { float:left; background:#fff; border:1.5px solid #e5e7eb; color:#1a1a2e; border-bottom-left-radius:4px; }
+    .s-msg .label { font-size:9px; opacity:.6; display:block; margin-bottom:2px; }
+    .s-msg .time { font-size:9px; opacity:.5; display:block; margin-top:3px; text-align:right; }
+    .s-msg.own .time { color:rgba(255,255,255,.65); }
+
+    .shipper-chat-input { display:flex; align-items:center; gap:6px; padding:8px 12px; border-top:1px solid #e5e7eb; background:#fff; flex-shrink:0; }
+    .shipper-chat-input input { flex:1; border:1.5px solid #e5e7eb; border-radius:20px; padding:7px 12px; font-size:13px; outline:none; }
+    .shipper-chat-input input:focus { border-color:#3CB815; }
+    .shipper-chat-input .chat-action-btn { background:transparent; border:1.5px solid #ddd; border-radius:50%; width:34px; height:34px; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:14px; color:#666; transition:all .2s; }
+    .shipper-chat-input .chat-action-btn:hover { border-color:#3CB815; color:#3CB815; }
+    .shipper-chat-input .send-btn { background:linear-gradient(135deg,#3CB815,#27a001); color:#fff; border:none; border-radius:50%; width:34px; height:34px; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:13px; }
+
+    .shipper-quick-replies { display:flex; gap:5px; padding:6px 12px; flex-wrap:wrap; border-top:1px solid #f0f0f0; background:#fafafa; flex-shrink:0; }
+    .shipper-qr-btn { background:#fff; border:1.5px solid #3CB815; color:#3CB815; border-radius:14px; padding:4px 10px; font-size:10px; cursor:pointer; transition:all .2s; white-space:nowrap; }
+    .shipper-qr-btn:hover { background:#3CB815; color:#fff; }
+</style>
+
+<div class="content-body">
+    <div class="container-fluid">
+        <div class="form-head d-flex mb-3 align-items-start">
+            <div class="me-auto d-none d-lg-block">
+                <h2 class="text-black font-w600 mb-0">Mã đơn hàng #@dh.madh</h2>
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="javascript:void(0)" class="text-primary">Shiper</a></li>
+                    <li class="breadcrumb-item active"><a href="javascript:void(0)">Chi tiết đơn hàng</a></li>
+                </ol>
+            </div>
+            <div class="dropdown mb-md-3 mb-2 ms-auto">
+                <div class="btn btn-success dropdown-toggle" data-bs-toggle="dropdown">
+                    <span>Đang chuẩn bị</span>
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-xl-3 col-xxl-3 col-lg-12 col-md-12">
+                <div class="row">
+                    <div class="col-xl-12 col-lg-6">
+                        <div class="card h-auto">
+                            <div class="card-body text-center">
+                                <img src="~/Source/Shipper/images/profile/jolibe.jpg" width="150" class="rounded-circle mb-4" alt="" />
+                                <h4 class="mb-3 text-black font-w600">@dh.tbQuanAn.tenquanan</h4>
+                                <a href="#" class="btn btn-primary light btn-xs">@dh.tbQuanAn.diachi</a>
+                            </div>
+                            <div class="card bg-secondary sticky mb-0">
+                                <div class="card-header border-0 pb-0">
+                                    <h5 class="card-title text-white mt-2">Ghi chú</h5>
+                                </div>
+                                <div class="card-body pt-3">
+                                    <p class="fs-14 op7 text-white">@dh.ghichu</p>
+                                </div>
+                                <div class="card-footer border-0 py-4 bg-warning rounded-xl">
+                                    <div class="media align-items-center">
+                                        <div class="media-body">
+                                            <h5 class="my-0 text-white">Địa chỉ: @dh.tbThongTinDatHang.diachi</h5>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-9 col-xxl-9 col-lg-12 col-md-12">
+                <div class="row">
+                    <div class="col-xl-12">
+                        <div class="card">
+                            <div class="card-body pt-2">
+                                <div class="table-responsive">
+                                    <table class="table items-table">
+                                        <thead>
+                                            <tr>
+                                                <th class="my-0 text-black font-w500 fs-20">Món ăn</th>
+                                                <th style="width: 10%" class="my-0 text-black font-w500 fs-20">Sl</th>
+                                                <th style="width: 10%" class="my-0 text-black font-w500 fs-20">Giá</th>
+                                                <th class="my-0 text-black font-w500 fs-20">Tổng giá</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                        @foreach (var item in listctdh)
+                                        {
+                                            <tr>
+                                                <td data-label="Món ăn">
+                                                    <div class="media">
+                                                        <img class="me-3 img-fluid rounded"
+                                                             width="85"
+                                                             src="@TinhToan.HinhAnhUrl(item.tbMonAn.hinhanh)"
+                                                             alt="DexignZone" />
+                                                        <div class="media-body">
+                                                            <small class="mt-0 mb-1 text-primary font-w500">@item.tbMonAn.tbDanhMuc.tendanhmuc</small>
+                                                            <h5 class="mt-0 mb-2 text-black mb-4">@item.tbMonAn.tenmon</h5>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td data-label="Sl">
+                                                    <h4 class="my-0 text-secondary font-w600">@item.soluong</h4>
+                                                </td>
+                                                <td data-label="Giá">
+                                                    <h4 class="my-0 text-secondary font-w600">@item.dongia?.ToString("N0")</h4>
+                                                </td>
+                                                <td data-label="Tổng giá">
+                                                    @{ var tonggia = item.soluong * item.dongia;}
+                                                    <h4 class="my-0 text-secondary font-w600">@tonggia?.ToString("N0")</h4>
+                                                </td>
+                                            </tr>
+                                        }
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-xl-12">
+                        <div class="card">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-center align-items-center">
+                                    <div class="thanhtoan col-lg-3 text-center">
+                                        <small>Trả quán</small>
+                                        @{var traquan = dh.tongtien - dh.phiship;}
+                                        <p>@traquan?.ToString("N0")</p>
+                                    </div>
+                                    <div class="thanhtoan col-lg-3 text-center">
+                                        <small>Khuyễn mãi</small>
+                                        <p></p>
+                                    </div>
+                                    <div class="thanhtoan col-lg-3 text-center">
+                                        <small>Phí ship</small>
+                                        <p>@dh.phiship?.ToString("N0")</p>
+                                    </div>
+                                    <div class="thanhtoan col-lg-3 text-center">
+                                        <small>Thu khách</small>
+                                        <p>@dh.tongtien?.ToString("N0")</p>
+                                    </div>                    </div>
+                </div>
+            </div>
+
+            <!-- ═══ CHAT PANEL: Shipper Floating Chat ═══ -->
+            <button class="shipper-chat-btn" id="shipperChatFab" onclick="toggleShipperChat()" title="Chat với khách hàng">
+                <i class="fas fa-comment-dots"></i>
+                <span class="badge-chat" id="shipperChatBadge" style="display:none;">1</span>
+            </button>
+
+            <div class="shipper-chat-panel" id="shipperChatPanel">
+                <div class="shipper-chat-header" onclick="toggleShipperChat()">
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <i class="fab fa-facebook-messenger" style="font-size:16px;"></i>
+                        <h6>Chat - @dh.tbThongTinDatHang.tennguoinhan</h6>
+                    </div>
+                    <button onclick="event.stopPropagation();toggleShipperChat()" title="Đóng">✕</button>
+                </div>
+                <div class="shipper-chat-msgs" id="shipperChatMsgs">
+                    <div class="s-msg other">
+                        <span class="label">FastShip</span>
+                        Chat trực tiếp với <strong>@dh.tbThongTinDatHang.tennguoinhan</strong> về đơn hàng #@dh.madh.
+                        Có thể gửi ảnh hóa đơn/quẹt thẻ làm minh chứng.
+                    </div>
+                </div>
+                <!-- Quick Replies for Shipper -->
+                <div class="shipper-quick-replies" id="shipperQuickReplies">
+                    <button class="shipper-qr-btn" onclick="shipperQuickReply('Tôi đã đến quán ăn, đang chờ lấy hàng')"><i class="fas fa-store"></i> Đã đến quán</button>
+                    <button class="shipper-qr-btn" onclick="shipperQuickReply('Tôi đang giao đến, khoảng 5 phút nữa tới')"><i class="fas fa-truck"></i> 5 phút nữa</button>
+                    <button class="shipper-qr-btn" onclick="shipperQuickReply('Tôi đang đứng trước cửa nhà, ra nhận hàng giúp mình')"><i class="fas fa-home"></i> Đang giao</button>
+                    <button class="shipper-qr-btn" onclick="shipperQuickReply('Đã giao hàng thành công. Cảm ơn bạn!')">✅ Giao xong</button>
+                </div>
+                <div class="shipper-chat-input">
+                    @Html.AntiForgeryToken()
+                    <button class="chat-action-btn" onclick="alert('Chụp ảnh hóa đơn / gói hàng để gửi minh chứng')" title="Gửi ảnh">
+                        <i class="fas fa-camera"></i>
+                    </button>
+                    <input type="text" id="shipperChatInput" placeholder="Soạn tin nhắn..." onkeypress="if(event.key==='Enter')sendShipperMsg()" />
+                    <button class="send-btn" onclick="sendShipperMsg()"><i class="fas fa-paper-plane"></i></button>
+                </div>
+            </div>
+
+                                    <!-- ═══ QR CODE CARD: E-Delivery Glassmorphism ═══ -->
+                            <div class="col-xl-12">
+                                <div class="card" style="border-radius:18px;overflow:hidden;border:1px solid rgba(255,255,255,.3);background:linear-gradient(135deg,rgba(255,255,255,.9),rgba(255,255,255,.7));backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);box-shadow:0 8px 32px rgba(0,0,0,.08);">
+                                    <div class="card-body text-center" style="padding:24px;">
+                                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
+                                            <div style="display:flex;align-items:center;gap:8px;">
+                                                <i class="fas fa-qrcode" style="color:#3CB815;font-size:18px;"></i>
+                                                <h5 style="font-weight:700;margin:0;font-size:15px;color:#1a1a2e;">Mã QR giao hàng</h5>
+                                            </div>
+                                            <span style="font-size:11px;color:#6b7280;background:#f3f4f6;padding:4px 12px;border-radius:20px;">
+                                                Đưa mã cho quán quét
+                                            </span>
+                                        </div>
+
+                                        <div style="display:flex;justify-content:center;align-items:center;padding:16px;background:linear-gradient(135deg,#f8f9fa,#fff);border-radius:16px;border:2px dashed #e5e7eb;min-height:160px;">
+                                            <!-- Shimmer loading -->
+                                            <div class="qr-shimmer-box" id="qr-shimmer-@dh.madh" style="width:140px;height:140px;border-radius:12px;background:linear-gradient(90deg,#f0f0f0 25%,#e0e0e0 50%,#f0f0f0 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;"></div>
+                                            <img src="@Url.Action("GenerateQR", "EDelivery", new { orderId = dh.madh })"
+                                                 alt="QR #@dh.madh"
+                                                 style="width:140px;height:140px;border-radius:12px;display:none;transition:transform .3s;"
+                                                 id="qr-img-@dh.madh"
+                                                 onload="document.getElementById('qr-shimmer-@dh.madh').style.display='none';this.style.display='block'"
+                                                 onerror="document.getElementById('qr-shimmer-@dh.madh').outerHTML='<div style=\'text-align:center;padding:20px;color:#9ca3af;\'><div style=\'font-size:36px;margin-bottom:8px;\'>📱</div><p style=\'font-size:13px;\'>Không thể tải mã QR</p><small style=\'color:#bbb;font-size:11px;\'>Vui lòng thử lại sau</small></div>'"
+                                                 crossorigin="anonymous" />
+                                        </div>
+
+                                        <div style="margin-top:12px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+                                            <a href="@Url.Action("GenerateQR","EDelivery", new { orderId = dh.madh })" target="_blank" class="btn btn-sm" style="background:#3CB815;color:#fff;border-radius:8px;padding:6px 16px;font-size:12px;">
+                                                <i class="fas fa-download"></i> Tải QR
+                                            </a>
+                                            <a href="@Url.Action("QRDelivery","Shipper")" class="btn btn-sm" style="background:#f3f4f6;color:#4b5563;border:1px solid #e5e7eb;border-radius:8px;padding:6px 16px;font-size:12px;">
+                                                <i class="fas fa-qrcode"></i> DS QR
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-xl-12">
+                                <div class="card">
+                                    <div class="card-body">
+                                        <div class="full-map-area mb-4" id="live-map" style="height:300px; background:#f0f0f0; border-radius:12px;">
+                                            <!-- Leaflet map will be initialized here -->
+                                        </div>
+                                        <!-- Leaflet CSS/JS d???c load trong _LayoutPageShipper.cshtml (head + footer) -->
+                                        <div class="d-flex mx-0 justify-content-between">
+                                            <div class="iconbox">
+                                                <i class="fas fa-user"></i>
+                                                <p class="my-0 text-black">@dh.tbThongTinDatHang.tennguoinhan</p>
+                                            </div>
+                                            <div class="iconbox">
+                                                <i class="fas fa-phone"></i>
+                                                <p>@dh.tbThongTinDatHang.sdt</p>
+                                            </div>
+                                            <div class="iconbox" style="cursor:pointer;" onclick="toggleShipperChat()">
+                                                <i class="fab fa-facebook-messenger" style="color:#3CB815;"></i>
+                                                <p style="color:#3CB815;font-weight:600;">Chat ngay!</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                </div>
+            </div>
+            <div class="col-xl-12">
+                <div class="form-group d-flex justify-content-around align-items-center">
+                    @if (dh.mashipper == null || dh.mashipper == 0)
+                    {
+                        <!-- ═══ FIX: Nút Nhận đơn (ClaimOrder POST) ═══ -->
+                        <div class="col-lg-6 text-center">
+                            <button id="btnClaim" class="btn btn-success w-100" style="padding:12px 24px;font-size:16px;font-weight:700;border:none;"
+                               onclick="claimOrder(@dh.madh, this)">
+                                <i class="fas fa-hand-paper me-2"></i>
+                                <span class="btn-text">Nhận đơn này</span>
+                                <span class="btn-spinner" style="display:none;"><i class="fas fa-spinner fa-spin"></i></span>
+                            </button>
+                        </div>
+                        <div class="col-lg-6 text-center">
+                            <a href="@Url.Action("Index","Shipper")" class="btn btn-outline-secondary w-100" style="padding:12px 24px;font-size:16px;">
+                                <i class="fas fa-arrow-left me-2"></i>Quay lại
+                            </a>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="col-lg-3">
+                            <a id="btnOrdered" class="btn btn-primary w-100 disabled">Đã đặt</a>
+                        </div>
+                        <div class="arrow" style="align-self:center">
+                            <i class="fas fa-arrow-right"></i>
+                        </div>
+                        <div class="col-lg-3">
+                            <a id="btnPickup" class="btn btn-primary w-100 @(dh.trangthai == "Đã lấy" || dh.trangthai == "Đang giao" || dh.trangthai == "Hoàn thành" ? "disabled" : " ")" onclick="updateOrderStatus('btnPickup', 'lh',@dh.madh)" >Lấy hàng</a>
+                        </div>
+                        <div class="arrow" style="align-self:center">
+                            <i class="fas fa-arrow-right"></i>
+                        </div>
+                        <div class="col-lg-3">
+                            <a id="btnDelivering" class="btn btn-primary w-100 @(dh.trangthai == "Đang giao" || dh.trangthai == "Hoàn thành" || dh.trangthai == "Đã đặt" || dh.trangthai == "Chờ shipper lấy hàng" ? "disabled" : " ")" onclick="updateOrderStatus('btnDelivering', 'dg',@dh.madh)" >Đang giao</a>
+                        </div>
+                        <div class="arrow" style="align-self:center">
+                            <i class="fas fa-arrow-right"></i>
+                        </div>
+                        <div class="col-lg-3">
+                            <a id="btnComplete" class="btn btn-primary w-100 @(dh.trangthai == "Hoàn thành" || dh.trangthai == "Đã đặt" || dh.trangthai == "Chờ shipper lấy hàng" || dh.trangthai == "Đã lấy" ? "disabled" : " ")" onclick="updateOrderStatus('btnComplete', 'ht',@dh.madh)" >Hoàn thành</a>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+<script>
+    // ═══ FIX: Nhận đơn (ClaimOrder POST) — có loading state ═══
+    function claimOrder(id, btn) {
+        if (btn && btn.disabled) return;
+        if (btn) {
+            btn.disabled = true;
+            var text = btn.querySelector('.btn-text');
+            var spinner = btn.querySelector('.btn-spinner');
+            if (text) text.style.display = 'none';
+            if (spinner) spinner.style.display = 'inline';
+            btn.style.opacity = '0.6';
+        }
+        var token = document.querySelector('input[name="__RequestVerificationToken"]')?.value || '';
+        $.ajax({
+            url: '@Url.Action("ClaimOrder", "Shipper")',
+            type: 'POST',
+            data: { id: id, __RequestVerificationToken: token },
+            success: function(res) {
+                if (res.success) {
+                    alert('✅ ' + res.message);
+                    location.reload();
+                } else {
+                    alert('❌ ' + res.message);
+                    if (btn) {
+                        btn.disabled = false;
+                        var text = btn.querySelector('.btn-text');
+                        var spinner = btn.querySelector('.btn-spinner');
+                        if (text) text.style.display = 'inline';
+                        if (spinner) spinner.style.display = 'none';
+                        btn.style.opacity = '1';
+                    }
+                }
+            },
+            error: function(xhr) {
+                alert('❌ Lỗi kết nối. Vui lòng thử lại.');
+                console.error('ClaimOrder error:', xhr.responseText);
+                if (btn) {
+                    btn.disabled = false;
+                    var text = btn.querySelector('.btn-text');
+                    var spinner = btn.querySelector('.btn-spinner');
+                    if (text) text.style.display = 'inline';
+                    if (spinner) spinner.style.display = 'none';
+                    btn.style.opacity = '1';
+                }
+            }
+        });
+    }
+
+    function updateOrderStatus(buttonId, status, id) {
+        var token = document.querySelector('input[name="__RequestVerificationToken"]')?.value || '';
+        $.ajax({
+            url: '@Url.Action("UpdateDonHang", "Shipper")',
+            type: 'POST',
+            data: { id: id, status: status, __RequestVerificationToken: token },
+            success: function(response) {
+                if (response.success) {
+                    var button = document.getElementById(buttonId);
+                    button.classList.add('disabled');
+                    button.setAttribute('disabled', 'true');
+                    button.onclick = null;
+                } else {
+                    alert(response.message);
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('Error updating order status:', error);
+                alert('Error updating order status: ' + error);
+            }
+        });
+    }
+
+    // Initialize Leaflet map for live order tracking
+    $(document).ready(function () {
+        if (typeof L !== 'undefined') {
+            var map = L.map('live-map').setView([10.8231, 106.6297], 13);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap contributors'
+            }).addTo(map);
+
+            // Restaurant marker (pickup location) - toado format: "x,y" or "longitude,latitude"
+            var quanToado = '@(dh.tbQuanAn?.toado ?? "")';
+            if (quanToado && quanToado.indexOf(',') > -1) {
+                var parts = quanToado.split(',');
+                if (parts.length === 2) {
+                    var lng = parseFloat(parts[0]);
+                    var lat = parseFloat(parts[1]);
+                    if (!isNaN(lat) && !isNaN(lng)) {
+                        L.marker([lat, lng])
+                            .addTo(map)
+                            .bindPopup('<b>@(dh.tbQuanAn?.tenquanan ?? "")</b><br/>Điểm lấy hàng');
+                    }
+                }
+            }
+
+            // Customer marker (delivery location)
+            var khToado = '@(dh.tbThongTinDatHang?.toado ?? "")';
+            if (khToado && khToado.indexOf(',') > -1) {
+                var parts = khToado.split(',');
+                if (parts.length === 2) {
+                    var lng = parseFloat(parts[0]);
+                    var lat = parseFloat(parts[1]);
+                    if (!isNaN(lat) && !isNaN(lng)) {
+                        L.marker([lat, lng])
+                            .addTo(map)
+                            .bindPopup('<b>@(dh.tbThongTinDatHang?.tennguoinhan ?? "")</b><br/>Điểm giao hàng');
+                    }
+                }
+            }
+        }
+
+        // ── SignalR: Connect + Start Geolocation Streaming ──
+        (function initShipperGeolocation() {
+            var orderId = @(ViewBag.dh?.madh ?? 0);
+            if (!orderId) return;
+
+            window.currentOrderId = orderId;
+            var conn;
+
+            // Use existing connection from Index page or create new one
+            if (window.shipperConn && window.shipperConn.state === 'Connected') {
+                conn = window.shipperConn;
+                startGeolocation();
+            } else {
+                conn = new signalR.HubConnectionBuilder()
+                    .withUrl('/nhantin')
+                    .withAutomaticReconnect()
+                    .build();
+
+                conn.onreconnected(function() {
+                    conn.invoke('JoinOrderGroup', orderId).catch(function(){});
+                    startGeolocation();
+                });
+
+                conn.start().then(function() {
+                    conn.invoke('JoinOrderGroup', orderId).catch(function(){});
+                    startGeolocation();
+                }).catch(function(err) {
+                    console.error('SignalR geolocation connection failed:', err);
+                });
+
+                window.shipperConn = conn;
+            }
+
+            // ── THROTTLE: Chỉ gửi tọa độ lên Hub tối đa 5s/lần ──
+            var _lastGeoUpdate = 0;
+            var _throttleInterval = 5000; // 5 giây
+
+            function sendLocationThrottled(lat, lng) {
+                var now = Date.now();
+                if (now - _lastGeoUpdate < _throttleInterval) return; // bỏ qua nếu chưa đủ 5s
+                _lastGeoUpdate = now;
+
+                // Update map center
+                if (typeof map !== 'undefined') {
+                    map.setView([lat, lng], 15);
+                }
+
+                // Stream to SignalR hub — shipperLocationUpdate event
+                if (conn && conn.state === 'Connected') {
+                    conn.invoke('UpdateLocation', orderId, lat, lng)
+                        .catch(function(err) {
+                            console.error('UpdateLocation error:', err);
+                        });
+                }
+            }                    function startGeolocation() {
+                if (!navigator.geolocation) return;
+
+                // 🔵 FIX Bug #13: Clear old watch before creating new one
+                if (window._geoWatchId !== undefined) {
+                    navigator.geolocation.clearWatch(window._geoWatchId);
+                }
+
+                // Watch position continuously for real-time tracking
+                window._geoWatchId = navigator.geolocation.watchPosition(
+                    function(pos) {
+                        var lat = pos.coords.latitude;
+                        var lng = pos.coords.longitude;
+                        sendLocationThrottled(lat, lng);
+                    },
+                    function(err) {
+                        console.warn('Geolocation error:', err.message);
+                        // Fallback: dùng tọa độ mặc định TP.HCM + thông báo user
+                        var fallbackLat = 10.8231;
+                        var fallbackLng = 106.6297;
+                        if (typeof map !== 'undefined') {
+                            map.setView([fallbackLat, fallbackLng], 13);
+                            L.marker([fallbackLat, fallbackLng]).addTo(map)
+                                .bindPopup('📍 Vị trí mặc định (TP.HCM) - Không thể lấy GPS')
+                                .openPopup();
+                        }
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        maximumAge: 5000,
+                        timeout: 15000
+                    }
+                );
+            }
+        })();
+    });
+
+    // ═══ Shipper Chat Functions ═══
+    function toggleShipperChat() {
+        var panel = document.getElementById('shipperChatPanel');
+        var fab = document.getElementById('shipperChatFab');
+        if (panel.classList.contains('open')) {
+            panel.classList.remove('open');
+            fab.style.display = 'flex';
+        } else {
+            panel.classList.add('open');
+            fab.style.display = 'none';
+            loadShipperChat();
+            setTimeout(function(){
+                document.getElementById('shipperChatMsgs').scrollTop = 9999;
+            }, 100);
+        }
+    }
+
+    function loadShipperChat() {
+        var customerId = @(customerId ?? 0);
+        if (!customerId) return;
+        $.ajax({
+            url: '@Url.Action("GetCustomerMessages", "AdminChat")',
+            type: 'GET', data: { userId: customerId },
+            success: function(res) {
+                if (!res.success || !res.data || res.data.length === 0) return;
+                var c = document.getElementById('shipperChatMsgs');
+                var welcome = c.querySelector('.s-msg:first-child');
+                c.innerHTML = '';
+                if (welcome) c.appendChild(welcome);
+                res.data.forEach(function(msg) {
+                    var isOwn = msg.sender === 'Shipper';
+                    appendShipperMsg(msg.content, isOwn ? 'own' : 'other', isOwn ? 'Bạn' : msg.sender);
+                });
+                c.scrollTop = c.scrollHeight;
+            }
+        });
+    }
+
+    function sendShipperMsg() {
+        var input = document.getElementById('shipperChatInput');
+        var msg = input.value.trim();
+        if (!msg) return;
+        appendShipperMsg(msg, 'own', 'Bạn');
+        input.value = '';
+        var token = document.querySelector('#shipperChatPanel input[name="__RequestVerificationToken"]')?.value || '';
+        var customerId = @(customerId ?? 0);
+        $.ajax({
+            url: '@Url.Action("CustomerSendMessage", "AdminChat")',
+            type: 'POST',
+            data: { orderId: @(ViewBag.dh?.madh ?? 0), message: msg, targetUserId: customerId },
+            headers: { 'RequestVerificationToken': token },
+            error: function() { appendShipperMsg('❌ Lỗi gửi tin nhắn', 'other', 'Hệ thống'); }
+        });
+    }
+
+    function shipperQuickReply(text) {
+        document.getElementById('shipperChatInput').value = text;
+        sendShipperMsg();
+    }
+
+    function appendShipperMsg(text, type, label) {
+        var c = document.getElementById('shipperChatMsgs');
+        var d = document.createElement('div');
+        d.className = 's-msg ' + type;
+        var time = new Date().toLocaleTimeString('vi-VN', {hour:'2-digit',minute:'2-digit'});
+        var safe = (text || '').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g, '<br/>');
+        d.innerHTML = '<span class="label">' + (label || '') + '</span>'
+            + safe
+            + '<span class="time">' + time + '</span>';
+        c.appendChild(d);
+        c.scrollTop = c.scrollHeight;
+    }
+
+    // Wire up SignalR chat listeners for shipper
+    (function wireChatListeners() {
+        var conn = window.shipperConn;
+        if (!conn) {
+            setTimeout(wireChatListeners, 1000);
+            return;
+        }
+        var orderId = @(ViewBag.dh?.madh ?? 0);
+        conn.on('orderMessage', function(msg, oid, senderName, senderRole, connId) {
+            if (oid === orderId && senderRole !== 'Shipper') {
+                appendShipperMsg(msg, 'other', (senderRole || '') + ' - ' + (senderName || ''));
+                var panel = document.getElementById('shipperChatPanel');
+                if (!panel.classList.contains('open')) {
+                    var badge = document.getElementById('shipperChatBadge');
+                    badge.style.display = 'flex';
+                    setTimeout(function(){ badge.style.display = 'none'; }, 5000);
+                }
+                loadShipperChat();
+            }
+        });
+        conn.on('adminMessage', function(msg, oid, sender) {
+            if (oid === orderId) {
+                appendShipperMsg(msg, 'other', 'Admin');
+                loadShipperChat();
+            }
+        });
+        // Listen for real-time order status changes
+        conn.on('orderStatusChanged', function (oid, trangthai, timestamp) {
+            if (oid !== @(ViewBag.dh?.madh ?? 0)) return;
+            // Update button states based on new status
+            var statusOrder = ['Đã đặt', 'Đã xác nhận', 'Chờ shipper lấy hàng', 'Đã lấy', 'Đang giao', 'Hoàn thành', 'Đã hủy'];
+            var currentIdx = statusOrder.indexOf(trangthai);
+            $('#btnOrdered, #btnPickup, #btnDelivering, #btnComplete').each(function() {
+                var btnId = this.id;
+                if (btnId === 'btnOrdered') { $(this).addClass('disabled'); return; }
+                var btnStatus = btnId === 'btnPickup' ? 'Đã lấy' :
+                               btnId === 'btnDelivering' ? 'Đang giao' : 'Hoàn thành';
+                var btnIdx = statusOrder.indexOf(btnStatus);
+                if (currentIdx >= btnIdx) {
+                    $(this).addClass('disabled').removeAttr('onclick');
+                } else {
+                    $(this).removeClass('disabled');
+                }
+            });
+        });
+
+        // Listen for customer messages (Customer g?i qua CustomerSendMessage)
+        conn.on('customerMessage', function(msg, oid, senderName) {
+            if (oid === orderId) {
+                appendShipperMsg(msg, 'other', 'Khách hàng - ' + (senderName || ''));
+                var panel = document.getElementById('shipperChatPanel');
+                if (!panel.classList.contains('open')) {
+                    var badge = document.getElementById('shipperChatBadge');
+                    badge.style.display = 'flex';
+                    setTimeout(function(){ badge.style.display = 'none'; }, 5000);
+                }
+                loadShipperChat();
+            }
+        });
+    })();
+
+    // Cleanup geolocation watch on page unload
+    window.addEventListener('beforeunload', function() {
+        if (window._geoWatchId) {
+            navigator.geolocation.clearWatch(window._geoWatchId);
+        }
+    });
+</script>

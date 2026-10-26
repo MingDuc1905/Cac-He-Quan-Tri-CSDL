@@ -1,0 +1,441 @@
+﻿
+@{
+    ViewBag.Title = "LichSuDatHang";
+    Layout = "~/Views/Shared/_LayoutPageHome.cshtml";
+    List<ShipFood.Models.tbDonHang> donHangs = ViewBag.donHangs;
+}
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Lịch sử đơn hàng | Fastship</title>
+    <link href="~/Source/Restaurant/vendor/datatables/css/jquery.dataTables.min.css" rel="stylesheet" />
+    <link href="~/Source/Restaurant/css/style-restaurant.css" rel="stylesheet" />
+    <style>
+        .order-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .order-badge.da-dat { background: #e3f2fd; color: #1565c0; }
+        .order-badge.da-xac-nhan { background: #e8f5e9; color: #2e7d32; }
+        .order-badge.dang-chuan-bi { background: #fff3e0; color: #e65100; }
+        .order-badge.da-lay { background: #f3e5f5; color: #6a1b9a; }
+        .order-badge.dang-giao { background: #e0f7fa; color: #00695c; }
+        .order-badge.hoan-thanh { background: #e8f5e9; color: #1b5e20; }
+        .order-badge.da-huy { background: #ffebee; color: #c62828; }
+        .order-items-list {
+            font-size: 12px;
+            color: #666;
+            max-width: 200px;
+        }
+    </style>
+</head>
+<div class="container-fluid" style="margin-top: 150px;">
+    <style>
+        /* Mobile responsive fixes */
+        @@media (max-width: 768px) {
+            .container-fluid[style*="150"] { margin-top: 100px !important; }
+            .form-head.d-flex { flex-direction: column; }
+            .form-head h2 { font-size: 1.2rem; }
+            .form-head p { font-size: 13px; }
+            #orderTable_wrapper .dataTables_length,
+            #orderTable_wrapper .dataTables_filter { display: block; width: 100%; }
+            #orderTable_wrapper .dataTables_filter input { max-width: 100%; width: 100%; margin-left: 0; }
+            .order-items-list { max-width: 100%; }
+        }
+        @@media (max-width: 576px) {
+            .container-fluid[style*="150"] { margin-top: 80px !important; }
+            .table-responsive td { padding: 10px; font-size: 13px; }
+            .order-badge { font-size: 11px; padding: 3px 8px; }
+            .btn-sm { font-size: 12px; padding: 6px 10px; }
+        }
+    </style>
+    <div class="form-head d-flex mb-3 align-items-start">
+        <div class="me-auto d-none d-lg-block">
+            <h2 class="text-black font-w600 mb-0"><i class="fas fa-receipt me-2"></i>Lịch sử đơn hàng</h2>
+            <p class="mb-0">Theo dõi tình trạng đơn hàng của bạn</p>
+        </div>
+    </div>
+
+    @if (donHangs.Count == 0)
+    {
+        <div class="text-center py-5">
+            <i class="fas fa-box-open" style="font-size: 64px; color: #ccc;"></i>
+            <h4 class="mt-3 text-muted">Bạn chưa có đơn hàng nào</h4>
+            <p class="text-muted">Hãy khám phá các quán ăn và đặt món ngay!</p>
+            <a href="~/" class="btn btn-success mt-2"><i class="fas fa-utensils me-2"></i>Đặt món ngay</a>
+        </div>
+    }
+    else
+    {
+        <div class="row">
+            <div class="col-12">
+                <div class="table-responsive">
+                    <table id="orderTable" class="display mb-4 dataTablesCard" style="min-width: 1000px">
+                        <thead>
+                            <tr>
+                                <th>Mã ĐH</th>
+                                <th>Ngày đặt</th>
+                                <th>Quán ăn</th>
+                                <th>Món đã đặt</th>
+                                <th>Tổng tiền</th>
+                                <th>Trạng thái</th>
+                                <th>Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var i in donHangs)
+                            {
+                                var statusClass = i.trangthai switch
+                                {
+                                    "Đã đặt" => "da-dat",
+                                    "Đã xác nhận" => "da-xac-nhan",
+                                    "Đang chuẩn bị" => "dang-chuan-bi",
+                                    "Đã lấy" => "da-lay",
+                                    "Đang giao" => "dang-giao",
+                                    "Hoàn thành" => "hoan-thanh",
+                                    "Đã hủy" => "da-huy",
+                                    _ => ""
+                                };
+                                var statusIcon = i.trangthai switch
+                                {
+                                    "Đã đặt" => "📋",
+                                    "Đã xác nhận" => "✅",
+                                    "Đang chuẩn bị" => "👨‍🍳",
+                                    "Đã lấy" => "🛵",
+                                    "Đang giao" => "🚀",
+                                    "Hoàn thành" => "✅",
+                                    "Đã hủy" => "❌",
+                                    _ => "📌"
+                                };
+                                var itemCount = i.tbChiTietDonHangs?.Sum(ct => ct.soluong ?? 0) ?? 0;
+                                var itemNames = i.tbChiTietDonHangs?.Select(ct => ct.tbMonAn?.tenmon).Where(n => n != null).ToList() ?? new List<string?>();
+                                <tr>
+                                    <td><strong>#@i.madh</strong></td>
+                                    <td>@TinhToan.GioVietNam(i.ngaydathang)?.ToString("dd/MM/yy HH:mm")</td>
+                                    <td>@(i.tbQuanAn?.tenquanan ?? "N/A")</td>
+                                    <td>
+                                        <div class="order-items-list">
+                                            @string.Join(", ", itemNames.Take(2))
+                                            @if (itemNames.Count > 2) { <text>...</text> }
+                                            <br /><small class="text-muted">(@itemCount món)</small>
+                                        </div>
+                                    </td>
+                                    <td><strong>@i.tongtien?.ToString("N0")</strong> VNĐ</td>
+                                    <td>
+                                        <span class="order-badge @statusClass">@statusIcon @i.trangthai</span>
+                                    </td>
+                                    <td style="padding: 20px;">
+                                        <div class="d-flex flex-column gap-1">
+                                            <a href="~/Cart/ChiTietDonHang?id=@i.madh" class="btn btn-sm btn-outline-secondary w-100">
+                                                <i class="fas fa-eye"></i> Chi tiết
+                                            </a>
+                                            <a href="~/Cart/OrderTracking?id=@i.madh" class="btn btn-sm btn-success w-100" style="border-radius:8px;"><i class="fas fa-map-marker-alt" style="margin-right:4px;"></i> Theo dõi
+                                            </a>
+                                            @if (i.trangthai == "Chờ thanh toán")
+                                            {
+                                                <button type="button" class="btn btn-sm btn-outline-danger w-100" style="border-radius:8px;font-size:12px;"
+                                                        onclick="huyDon(@i.madh, '@Url.Action("HuyDon", "Cart")')">
+                                                    <i class="fas fa-times"></i> Hủy đơn
+                                                </button>
+                                            }
+                                            @if (i.trangthai == "Hoàn thành")
+                                            {
+                                                <button type="button" class="btn btn-sm btn-warning w-100" style="border-radius:8px;font-size:12px;color:#fff;font-weight:600;"
+                                                        onclick="openReviewFromList(@i.madh)">
+                                                    <i class="fas fa-star"></i> Đánh giá
+                                                </button>
+                                            }
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+<!-- ═══════════════════════════════════════════════════════════════
+     ⭐ MODAL ĐÁNH GIÁ MÓN ĂN (dùng chung)
+     ═══════════════════════════════════════════════════════════════ -->
+<div id="reviewModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.55);z-index:99999;align-items:center;justify-content:center;">
+    <div style="background:#fff;border-radius:20px;max-width:460px;width:92%;padding:32px 24px;box-shadow:0 20px 60px rgba(0,0,0,.2);animation:popIn .3s ease;text-align:center;">
+        <div style="font-size:40px;margin-bottom:12px;">⭐</div>
+        <h4 style="font-weight:700;margin-bottom:4px;">Đánh giá món ăn</h4>
+        <p class="text-muted" style="font-size:14px;margin-bottom:20px;">Chia sẻ trải nghiệm của bạn về món ăn này</p>
+
+        <div id="reviewStars" style="display:flex;justify-content:center;gap:8px;margin-bottom:20px;font-size:36px;cursor:pointer;">
+            <span data-star="1" class="review-star" style="color:#ddd;transition:color .15s;">★</span>
+            <span data-star="2" class="review-star" style="color:#ddd;transition:color .15s;">★</span>
+            <span data-star="3" class="review-star" style="color:#ddd;transition:color .15s;">★</span>
+            <span data-star="4" class="review-star" style="color:#ddd;transition:color .15s;">★</span>
+            <span data-star="5" class="review-star" style="color:#ddd;transition:color .15s;">★</span>
+        </div>
+        <p id="reviewLabel" style="font-size:14px;color:#888;margin-bottom:16px;">Chọn số sao</p>
+
+        <div id="reviewItemsList" style="margin-bottom:16px;">
+            <p class="text-muted small">Đang tải danh sách món...</p>
+        </div>
+
+        <textarea id="reviewComment" style="width:100%;border:1.5px solid #dee2e6;border-radius:12px;padding:12px;font-size:14px;resize:none;min-height:80px;" placeholder="Nhận xét của bạn... (không bắt buộc)"></textarea>
+        <p style="text-align:right;font-size:11px;color:#aaa;margin:4px 0 16px;"><span id="charCount">0</span>/500</p>
+
+        <div style="display:flex;gap:10px;">
+            <button type="button" class="btn btn-outline-secondary flex-fill" style="border-radius:10px;" onclick="closeReviewModal()">Hủy</button>
+            <button type="button" class="btn btn-warning flex-fill" style="border-radius:10px;color:#fff;font-weight:600;" id="btnSubmitReview" onclick="submitReview()" disabled>
+                <i class="fas fa-star"></i> Gửi đánh giá
+            </button>
+        </div>
+    </div>
+</div>
+
+<style>
+    @@keyframes popIn { 0%{transform:scale(.8);opacity:0} 100%{transform:scale(1);opacity:1} }
+</style>
+
+@Html.AntiForgeryToken()
+<script src="~/Source/Restaurant/vendor/global/global.min.js"></script>
+<script src="~/Source/Restaurant/vendor/datatables/js/jquery.dataTables.min.js"></script>
+<script>
+    function huyDon(orderId, url) {
+        if (!confirm('Bạn có chắc muốn hủy đơn hàng #' + orderId + '?')) return;
+        $.ajax({
+            url: url,
+            type: 'POST',
+            data: { id: orderId },
+            headers: { 'RequestVerificationToken': $('input[name="__RequestVerificationToken"]').val() },
+            success: function(res) {
+                if (res.success) {
+                    alert(res.message);
+                    location.reload();
+                } else {
+                    alert(res.message);
+                }
+            },
+            error: function() {
+                alert('Lỗi kết nối. Vui lòng thử lại.');
+            }
+        });
+    }
+
+    // ════════════════════════════════════════════════════════
+    // ⭐ ĐÁNH GIÁ MÓN ĂN FROM LỊCH SỬ ĐƠN HÀNG
+    // ════════════════════════════════════════════════════════
+    var selectedReviewStars = 0;
+    var reviewingMactdh = null;
+    var reviewingOrderId = 0;
+
+    function openReviewFromList(orderId) {
+        reviewingOrderId = orderId;
+        selectedReviewStars = 0;
+        reviewingMactdh = null;
+        $('#reviewComment').val('');
+        $('#charCount').text('0');
+        $('#btnSubmitReview').prop('disabled', true);
+        resetStars();
+        $('#reviewLabel').text('Chọn số sao');
+        $('#reviewItemsList').html('<p class="text-muted small">Đang tải danh sách món...</p>');
+        $('#reviewModal').css('display','flex');
+
+        $.ajax({
+            url: '@Url.Action("GetReviewableItems", "Cart")',
+            type: 'GET',
+            data: { orderId: orderId },
+            success: function(res) {
+                if (res.success && res.items) {
+                    var html = '<div style="text-align:left;margin-bottom:12px;">';
+                    html += '<label style="font-weight:600;font-size:14px;">Chọn món để đánh giá:</label>';
+                    res.items.forEach(function(item) {
+                        var disabled = item.reviewed ? 'disabled' : '';
+                        var cls = item.reviewed ? 'text-muted' : '';
+                        html += '<div class="review-item-option ' + cls + '" style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:10px;border:1.5px solid #e5e7eb;margin-top:6px;cursor:' + (item.reviewed ? 'default' : 'pointer') + ';"';
+                        html += ' onclick="' + (item.reviewed ? '' : 'selectReviewItem(' + item.mactdh + ',\' ' + (item.tenmon || 'Món ăn').replace(/'/g, "\\'") + '\')') + '">';
+                        html += '<input type="radio" name="reviewItem" value="' + item.mactdh + '" ' + disabled + '>';
+                        html += '<span style="flex:1;font-size:14px;">' + escHtml(item.tenmon || 'Món ăn') + ' <span class="text-muted">x' + item.soluong + '</span></span>';
+                        if (item.reviewed) {
+                            html += '<span class="badge bg-success" style="font-size:11px;"><i class="fas fa-check"></i> Đã đánh giá</span>';
+                        }
+                        html += '</div>';
+                    });
+                    html += '</div>';
+                    $('#reviewItemsList').html(html);
+                } else {
+                    $('#reviewItemsList').html('<p class="text-danger small">' + (res.message || 'Không có món nào để đánh giá') + '</p>');
+                }
+            },
+            error: function() {
+                $('#reviewItemsList').html('<p class="text-danger small">Lỗi tải danh sách món</p>');
+            }
+        });
+    }
+
+    function selectReviewItem(mactdh, tenmon) {
+        reviewingMactdh = mactdh;
+        $('.review-item-option').css('border-color','#e5e7eb').css('background','');
+        $('.review-item-option input[value="' + mactdh + '"]').closest('.review-item-option').css('border-color','#ffc107').css('background','#fffef0');
+        updateSubmitBtn();
+    }
+
+    function closeReviewModal() {
+        $('#reviewModal').css('display','none');
+    }
+
+    $(document).on('click', '.review-star', function() {
+        selectedReviewStars = parseInt($(this).data('star'));
+        updateStars();
+        updateSubmitBtn();
+    });
+
+    $(document).on('mouseenter', '.review-star', function() {
+        var val = parseInt($(this).data('star'));
+        $('.review-star').each(function() {
+            var s = parseInt($(this).data('star'));
+            $(this).css('color', s <= val ? '#ffc107' : '#ddd');
+        });
+        var labels = ['', 'Rất tệ 😞', 'Tệ 😕', 'Tạm được 😐', 'Ngon 👍', 'Tuyệt vời 🎉'];
+        $('#reviewLabel').text(labels[val] || 'Chọn số sao');
+    });
+
+    $(document).on('mouseleave', '.review-star', function() {
+        updateStars();
+    });
+
+    function resetStars() {
+        selectedReviewStars = 0;
+        updateStars();
+        $('#reviewLabel').text('Chọn số sao');
+    }
+
+    function updateStars() {
+        $('.review-star').each(function() {
+            var s = parseInt($(this).data('star'));
+            $(this).css('color', s <= selectedReviewStars ? '#ffc107' : '#ddd');
+        });
+        var labels = ['', 'Rất tệ 😞', 'Tệ 😕', 'Tạm được 😐', 'Ngon 👍', 'Tuyệt vời 🎉'];
+        if (selectedReviewStars > 0) $('#reviewLabel').text(labels[selectedReviewStars] || 'Chọn số sao');
+    }
+
+    function updateSubmitBtn() {
+        $('#btnSubmitReview').prop('disabled', !(selectedReviewStars > 0 && reviewingMactdh != null));
+    }
+
+    $(document).on('input', '#reviewComment', function() {
+        var len = $(this).val().length;
+        if (len > 500) { $(this).val($(this).val().substring(0, 500)); len = 500; }
+        $('#charCount').text(len);
+    });
+
+    function submitReview() {
+        if (!selectedReviewStars || !reviewingMactdh) {
+            alert('Vui lòng chọn số sao và món ăn');
+            return;
+        }
+
+        $('#btnSubmitReview').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Đang gửi...');
+
+        $.ajax({
+            url: '@Url.Action("SubmitReview", "Cart")',
+            type: 'POST',
+            data: {
+                mactdh: reviewingMactdh,
+                diemdanhgia: selectedReviewStars,
+                nhanxet: $('#reviewComment').val()
+            },
+            headers: { 'RequestVerificationToken': $('input[name="__RequestVerificationToken"]').val() },
+            success: function(res) {
+                if (res.success) {
+                    alert('✅ ' + res.message);
+                    closeReviewModal();
+                    location.reload();
+                } else {
+                    alert('❌ ' + res.message);
+                    $('#btnSubmitReview').prop('disabled', false).html('<i class="fas fa-star"></i> Gửi đánh giá');
+                }
+            },
+            error: function() {
+                alert('❌ Lỗi kết nối. Vui lòng thử lại.');
+                $('#btnSubmitReview').prop('disabled', false).html('<i class="fas fa-star"></i> Gửi đánh giá');
+            }
+        });
+    }
+
+    function escHtml(str) {
+        if (!str) return '';
+        var d = document.createElement('div'); d.textContent = str; return d.innerHTML;
+    }
+
+    // ═══ REAL-TIME: SignalR order status update ═══
+    $(function () {
+        $('#orderTable').DataTable({
+            searching: true,
+            paging: true,
+            lengthChange: false,
+            // ponytail: FIX sort — trước đây order theo cột Mã ĐH (chuỗi "#99" > "#110" → sai thứ tự
+            // khi ID vượt 99). Chuyển sang sort theo cột Ngày đặt (index 1) với ISO render để đúng ngày tháng.
+            order: [[1, 'desc']],
+            // ponytail: FIX sort ngày — ô hiển thị dd/MM/yy HH:mm bị DataTable sort theo CHUỖI
+            // ('0' < '3' → "02/08/26" xếp DƯỚI "30/07/26"). Render ISO yyyy-MM-ddTHH:mm cho sort/type.
+            columnDefs: [{
+                targets: 1,
+                type: 'date',
+                render: function (data, type) {
+                    if (type === 'sort' || type === 'type') {
+                        var m = data.match(/^(\d{2})\/(\d{2})\/(\d{2}|\d{4}) (\d{2}:\d{2})$/);
+                        if (m) {
+                            // dd/MM/yy (năm 2 số) → chuyển sang 20yy; dd/MM/yyyy giữ nguyên
+                            var y = m[3].length === 2 ? '20' + m[3] : m[3];
+                            return y + '-' + m[2] + '-' + m[1] + 'T' + m[4];
+                        }
+                        // ponytail: fallback ISO xa xua cho ô ngày null (tránh Date.parse NaN làm sort loạn)
+                        return '0000-01-01T00:00';
+                    }
+                    return data;
+                }
+            }],
+            language: {
+                url: '//cdn.datatables.net/plug-ins/1.13.4/i18n/vi.json'
+            }
+        });
+
+        // Connect SignalR to receive order status changes in real-time
+        var conn = new signalR.HubConnectionBuilder()
+            .withUrl('/nhantin')
+            .withAutomaticReconnect()
+            .build();
+
+        conn.on('orderStatusChanged', function (orderId, trangthai, timestamp) {
+            // Cập nhật badge trạng thái trong bảng nếu đơn hàng đang hiển thị
+            // Tìm dòng chứa mã đơn hàng — href format: ~/Cart/ChiTietDonHang?id=XYZ
+            var $link = $('#orderTable').find('a[href*="ChiTietDonHang?id="][href$="' + orderId + '"]');
+            if ($link.length > 0) {
+                var $statusCell = $link.closest('tr').find('td:nth-child(6)');
+                if ($statusCell.length) {
+                    var badgeClass = trangthai === 'Đã hủy' || trangthai === 'Đã từ chối' ? 'badge-danger badge' :
+                                    trangthai === 'Đang giao' || trangthai === 'Hoàn thành' ? 'badge-success badge' :
+                                    trangthai === 'Đã lấy' ? 'badge-info badge' : 'badge-warning badge';
+                    $statusCell.html('<span class="' + badgeClass + '">' + trangthai + '</span>');
+                }
+            }
+        });
+
+        conn.start().then(function () {
+            // Tham gia các order groups để nhận real-time status updates
+            var orderIds = [@string.Join(",", donHangs.Select(o => o.madh))];
+            orderIds.forEach(function (id) {
+                conn.invoke('JoinOrderGroup', id).catch(function (err) {
+                    console.warn('SignalR: Cannot join order group ' + id, err);
+                });
+            });
+        }).catch(function (err) {
+            console.warn('SignalR connection failed (LichSuDatHang):', err.toString());
+        });
+    });
+</script>

@@ -1,0 +1,666 @@
+@using ShipFood.Models
+@{
+    ViewBag.Title = "Theo dõi đơn hàng";
+    Layout = "~/Views/Shared/_LayoutPageHome.cshtml";
+    tbDonHang donHang = ViewBag.DonHang;
+    var userJson = Context.Session.GetString("user");
+    tbUser? user = userJson != null ? JsonSerializer.Deserialize<tbUser>(userJson) : null;
+
+    // ─── Parse coordinates from DB for map center ───
+    var quanToado = donHang.tbQuanAn?.toado ?? "";
+    var khToado = donHang.tbThongTinDatHang?.toado ?? "";
+    var mapCenterLat = 10.8231;
+    var mapCenterLng = 106.6297;
+    var qLat = 0.0; var qLng = 0.0;
+    var kLat = 0.0; var kLng = 0.0;
+
+    if (!string.IsNullOrEmpty(khToado) && khToado.Split(',').Length == 2)
+    {
+        var parts = khToado.Split(',');
+        double.TryParse(parts[0], out kLng);
+        double.TryParse(parts[1], out kLat);
+    }
+    if (!string.IsNullOrEmpty(quanToado) && quanToado.Split(',').Length == 2)
+    {
+        var parts = quanToado.Split(',');
+        double.TryParse(parts[0], out qLng);
+        double.TryParse(parts[1], out qLat);
+    }
+    if (kLat != 0 && kLng != 0) { mapCenterLat = kLat; mapCenterLng = kLng; }
+    else if (qLat != 0 && qLng != 0) { mapCenterLat = qLat; mapCenterLng = qLng; }
+}
+
+@section styles {
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+    .tracking-wrapper { margin-top: 100px; padding: 24px 0 60px; background: var(--fs-bg, #f8f9fa); min-height: 80vh; }
+    @@media (max-width: 768px) { .tracking-wrapper { margin-top: 80px; } }
+
+    .tracking-card { background: var(--fs-white); border-radius: var(--fs-radius-lg); box-shadow: var(--fs-shadow); padding: 28px; margin-bottom: 20px; }
+
+    /* ── Progress Bar ── */
+    .fs-tracking-progress { display: flex; align-items: flex-start; justify-content: space-between; padding: 16px 0; }
+    .fs-tracking-step { display: flex; flex-direction: column; align-items: center; position: relative; flex: 1; text-align: center; }
+    .fs-tracking-icon { width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; background: var(--fs-border-soft, #f0f0f0); border: 3px solid var(--fs-border, #e0e0e0); transition: all .3s; margin-bottom: 6px; }
+    .fs-tracking-step.completed .fs-tracking-icon { background: var(--fs-green); border-color: var(--fs-green); }
+    .fs-tracking-step.current .fs-tracking-icon { background: var(--fs-green); border-color: var(--fs-green); box-shadow: 0 0 0 4px rgba(60,184,21,.2); animation: pulse 2s infinite; }
+    .fs-tracking-label { font-size: 11px; font-weight: 600; color: var(--fs-muted, #999); }
+    .fs-tracking-step.completed .fs-tracking-label, .fs-tracking-step.current .fs-tracking-label { color: var(--fs-dark, #333); }
+    .fs-tracking-line { position: absolute; top: 22px; left: 50%; width: 100%; height: 3px; background: var(--fs-border, #e0e0e0); z-index: -1; }
+    .fs-tracking-line.active { background: var(--fs-green); }
+
+    @@keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(60,184,21,.4); } 70% { box-shadow: 0 0 0 10px rgba(60,184,21,0); } 100% { box-shadow: 0 0 0 0 rgba(60,184,21,0); } }
+    @@keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+
+    /* ── Order Info ── */
+    .info-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--fs-border-soft, #f0f0f0); font-size: 14px; }
+    .info-row:last-child { border-bottom: none; }
+    .info-label { color: var(--fs-muted, #888); }
+    .info-value { font-weight: 600; color: var(--fs-dark); text-align: right; }
+
+    /* ── Map ── */
+    #trackingMap { height: 300px; border-radius: var(--fs-radius); border: 2px solid var(--fs-border, #e5e7eb); }
+
+    /* ── Chat Bottom Sheet ── */
+    .chat-fab { position:fixed; bottom:24px; right:24px; width:56px; height:56px; border-radius:50%; background:linear-gradient(135deg,var(--fs-green),var(--fs-green-dark)); color:#fff; border:none; box-shadow:0 4px 16px rgba(60,184,21,.4); display:flex; align-items:center; justify-content:center; font-size:22px; cursor:pointer; z-index:999; transition:transform .2s,box-shadow .2s; }
+    .chat-fab:hover { transform:scale(1.08); box-shadow:0 6px 24px rgba(60,184,21,.5); }
+    .fs-tracking-step .fs-tracking-icon i,
+    .chat-fab i { color:#fff; }
+    .chat-fab:active { transform:scale(.95); }
+    .chat-fab .badge-chat { position:absolute; top:-4px; right:-4px; width:20px; height:20px; border-radius:50%; background:#e74c3c; color:#fff; font-size:10px; display:flex; align-items:center; justify-content:center; font-weight:700; }
+
+    .chat-sheet { position:fixed; bottom:0; right:0; width:380px; max-width:100vw; max-height:70vh; background:#fff; border-radius:20px 20px 0 0; box-shadow:0 -4px 30px rgba(0,0,0,.15); z-index:1000; display:none; flex-direction:column; transform:translateY(100%); transition:transform .35s cubic-bezier(.32,.72,0,1); overflow:hidden; }
+    .chat-sheet.open { display:flex; transform:translateY(0); }
+    @@media (max-width:576px) { .chat-sheet { width:100vw; max-height:80vh; border-radius:16px 16px 0 0; } }
+
+    .chat-sheet-header { display:flex; align-items:center; justify-content:space-between; padding:14px 18px; background:linear-gradient(135deg,#3CB815,#27a001); color:#fff; cursor:pointer; flex-shrink:0; }
+    .chat-sheet-header h6 { margin:0; font-weight:600; font-size:15px; }
+    .chat-sheet-header button { background:none; border:none; color:#fff; font-size:18px; cursor:pointer; opacity:.8; padding:4px; }
+    .chat-sheet-header button:hover { opacity:1; }
+
+    .chat-sheet-messages { flex:1; overflow-y:auto; padding:14px 16px; background:#f8f9fa; min-height:200px; max-height:350px; }
+    .chat-sheet-messages::-webkit-scrollbar { width:4px; }
+    .chat-sheet-messages::-webkit-scrollbar-thumb { background:rgba(0,0,0,.1); border-radius:4px; }
+
+    .chat-bubble { margin-bottom:10px; max-width:82%; padding:9px 14px; border-radius:14px; font-size:13px; line-height:1.5; word-wrap:break-word; clear:both; }
+    .chat-bubble.own { float:right; background:linear-gradient(135deg,#3CB815,#2ea310); color:#fff; border-bottom-right-radius:4px; }
+    .chat-bubble.other { float:left; background:#fff; border:1.5px solid #e5e7eb; color:#1a1a2e; border-bottom-left-radius:4px; }
+    .chat-bubble .label { font-size:9px; opacity:.6; display:block; margin-bottom:2px; }
+    .chat-bubble .time { font-size:9px; opacity:.5; display:block; margin-top:3px; text-align:right; }
+    .chat-bubble.own .time { color:rgba(255,255,255,.65); }
+
+    .chat-sheet-input { display:flex; align-items:center; gap:8px; padding:10px 14px; border-top:1px solid #e5e7eb; background:#fff; flex-shrink:0; }
+    .chat-sheet-input input { flex:1; border:1.5px solid #e5e7eb; border-radius:20px; padding:8px 14px; font-size:13px; outline:none; transition:border-color .2s; }
+    .chat-sheet-input input:focus { border-color:#3CB815; }
+    .chat-sheet-input button { background:linear-gradient(135deg,#3CB815,#27a001); color:#fff; border:none; border-radius:50%; width:36px; height:36px; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:13px; transition:opacity .2s; }
+    .chat-sheet-input button:hover { opacity:.85; }
+    .chat-sheet-input button:disabled { opacity:.4; cursor:default; }
+
+    .quick-replies { display:flex; gap:6px; padding:8px 14px; flex-wrap:wrap; border-top:1px solid #f0f0f0; background:#fafafa; flex-shrink:0; }
+    .quick-reply-btn { background:#fff; border:1.5px solid #3CB815; color:#3CB815; border-radius:16px; padding:5px 12px; font-size:11px; cursor:pointer; transition:all .2s; white-space:nowrap; }
+    .quick-reply-btn:hover { background:#3CB815; color:#fff; }
+
+    /* ── Shipper Info ── */
+    .shipper-info { display: flex; align-items: center; gap: 14px; padding: 16px; background: linear-gradient(135deg,#f0fff0,#e8f5e9); border-radius: 12px; border: 1px solid #c3e6cb; }
+    .shipper-avatar { width: 48px; height: 48px; border-radius: 50%; background: #3CB815; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 20px; font-weight: 700; }
+    .shipper-name { font-weight: 700; font-size: 15px; }
+    .shipper-phone { font-size: 13px; color: #666; }
+
+    /* ── Order Items ── */
+    .order-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--fs-border-soft, #f0f0f0); font-size: 14px; }
+    .order-item:last-child { border-bottom: none; }
+    .order-total { font-size: 18px; font-weight: 700; color: var(--fs-danger, #e74c3c); border-top: 2px solid var(--fs-danger, #e74c3c); padding-top: 12px; margin-top: 8px; display: flex; justify-content: space-between; }
+
+    @@media (max-width: 576px) {
+        .tracking-card { padding: 16px; }
+        .fs-tracking-icon { width: 36px; height: 36px; font-size: 14px; }
+        .fs-tracking-label { font-size: 9px; }
+        #trackingMap { height: 200px; }
+    }
+</style>
+}
+
+<div class="tracking-wrapper">
+    <div class="container">
+        <div class="row g-4">
+            <div class="col-lg-8">
+                <!-- Progress Bar -->
+                <div class="tracking-card">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+                        <h5 style="font-weight:700;margin:0;"><i class="fas fa-box"></i> Theo dõi đơn hàng #@donHang.madh</h5>
+                        <span class="badge" style="background:#3CB815;color:#fff;padding:6px 14px;border-radius:20px;font-size:13px;">
+                            @donHang.trangthai
+                        </span>
+                    </div>
+                    <div id="trackingProgress"></div>
+                    <p style="font-size:12px;color:#888;margin:12px 0 0;text-align:center;">
+                        <i class="fa fa-refresh me-1"></i>Trạng thái cập nhật tự động theo thời gian thực
+                    </p>
+                </div>
+
+                <!-- Live Map + ETA + Google Maps -->
+                <div class="tracking-card">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+                        <h6 style="font-weight:700;margin:0;"><i class="fas fa-map-marker-alt" style="margin-right:6px;"></i>Vị trí giao hàng</h6>
+                        <div style="font-size:12px;color:#888;" id="etaDisplay">
+                            <i class="fa fa-clock me-1"></i>
+                            <span id="etaText">Đang tính thời gian...</span>
+                        </div>
+                    </div>
+                    <div id="trackingMap"></div>
+                    <div style="margin-top:8px;text-align:right;">
+                        <a href="https://www.google.com/maps/dir/?api=1&destination=@mapCenterLat,@mapCenterLng" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-secondary" style="border-radius:8px;font-size:12px;">
+                            <i class="fab fa-google me-1"></i>Mở Google Maps
+                        </a>
+                    </div>
+                </div>
+
+                <!-- ═══ Bank Transfer QR Card ═══ -->
+                @if (donHang.trangthai == "Chờ thanh toán" && ViewBag.QrCodeUrl != null)
+                {
+                    <div class="tracking-card bank-qr-card">
+                        <div style="text-align:center;">
+                            <h6 style="font-weight:700;margin-bottom:16px;">🏦 Thanh toán chuyển khoản</h6>
+                            <div class="qr-wrapper" style="position:relative;display:inline-block;">
+                                <!-- Shimmer loading overlay -->
+                                <div class="qr-shimmer" style="position:absolute;inset:0;background:linear-gradient(90deg,transparent 0%,rgba(255,255,255,.4) 50%,transparent 100%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:12px;z-index:1;pointer-events:none;"></div>
+                                <img src="@ViewBag.QrCodeUrl" alt="Mã QR chuyển khoản" style="width:220px;height:220px;border-radius:12px;border:2px solid #e5e7eb;background:#fff;" id="qrCodeImg" />
+                            </div>
+
+                            <div style="margin-top:16px;text-align:left;background:#f8f9fa;padding:14px;border-radius:10px;font-size:13px;line-height:1.8;">
+                                <div style="display:flex;justify-content:space-between;">
+                                    <span style="color:#666;">Ngân hàng:</span>
+                                    <span style="font-weight:600;">@ViewBag.BankInfo.bankId</span>
+                                </div>
+                                <div style="display:flex;justify-content:space-between;">
+                                    <span style="color:#666;">Số tài khoản:</span>
+                                    <span style="font-weight:600;font-family:monospace;">@ViewBag.BankInfo.accountNo</span>
+                                </div>
+                                <div style="display:flex;justify-content:space-between;">
+                                    <span style="color:#666;">Chủ tài khoản:</span>
+                                    <span style="font-weight:600;">@ViewBag.BankInfo.accountName</span>
+                                </div>
+                                <div style="display:flex;justify-content:space-between;">
+                                    <span style="color:#666;">Số tiền:</span>
+                                    <span style="font-weight:700;color:#e74c3c;font-size:16px;">@ViewBag.BankInfo.amount.ToString("N0")đ</span>
+                                </div>
+                                <div style="display:flex;justify-content:space-between;">
+                                    <span style="color:#666;">Nội dung CK:</span>
+                                    <span style="font-weight:600;font-family:monospace;color:#3CB815;" id="memoText">@ViewBag.BankInfo.memo</span>
+                                </div>
+                            </div>
+
+                            <div class="alert alert-warning" style="margin:14px 0 8px;padding:12px;border-radius:10px;font-size:12px;background:#fff3cd;border:1px solid #ffeeba;text-align:center;">
+                                <i class="fa fa-exclamation-triangle me-1"></i>
+                                Vui lòng quét mã và <strong>giữ nguyên Số tiền + Nội dung chuyển khoản</strong>.
+                                Hệ thống sẽ tự động duyệt đơn sau <strong>30 giây - 1 phút</strong> ngay khi nhận được tiền.
+                            </div>
+
+                            <!-- Loading indicator -->
+                            <div id="paymentWaitingIndicator" style="margin:12px 0;display:flex;align-items:center;justify-content:center;gap:8px;color:#888;font-size:13px;">
+                                <div class="spinner-border spinner-border-sm" role="status" style="width:16px;height:16px;"></div>
+                                <span>Hệ thống đang chờ xác nhận thanh toán...</span>
+                            </div>
+
+                            <!-- Fallback button -->
+                            <button id="btnVerifyPayment" class="btn btn-outline-success" style="border-radius:10px;padding:10px 24px;font-size:14px;" onclick="verifyBankPayment(@donHang.madh)">
+                                <i class="fa fa-check-circle me-1"></i> Tôi đã chuyển khoản thành công
+                            </button>
+                            <div id="verifyResult" style="margin-top:10px;font-size:13px;"></div>
+                        </div>
+                    </div>
+                }
+
+                <!-- ═══ VNPAY Payment Button ═══ -->
+                @if (donHang.trangthai == "Chờ thanh toán" && donHang.tbLoaiHinhThanhToan != null && 
+                    donHang.tbLoaiHinhThanhToan.tenhinhthuc.ToLowerInvariant().Contains("vnpay"))
+                {
+                    <div class="tracking-card" id="vnpayPaymentCard">
+                        <div style="text-align:center;">
+                            <h6 style="font-weight:700;margin-bottom:16px;">💳 Thanh toán VNPAY</h6>
+                            <div style="background:linear-gradient(135deg,#F37920,#e05e0e);width:64px;height:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;">
+                                <span style="color:#fff;font-weight:800;font-size:20px;">VN</span>
+                            </div>
+                            <p style="color:#666;font-size:14px;margin-bottom:16px;">
+                                Đơn hàng #@donHang.madh đang chờ thanh toán qua VNPAY.
+                                Nhấn nút bên dưới để chuyển hướng đến cổng thanh toán VNPAY.
+                            </p>
+                            <div style="margin-bottom:12px;">
+                                <span style="font-size:24px;font-weight:700;color:#e74c3c;">@((donHang.tongtien ?? 0).ToString("N0"))đ</span>
+                            </div>
+                            <button id="btnVnpay" class="btn btn-primary" style="padding:12px 32px;border-radius:12px;font-size:15px;font-weight:600;background:linear-gradient(135deg,#F37920,#e05e0e);border:none;"
+                                    onclick="payWithVnpay(@donHang.madh)">
+                                <span style="font-weight:700;margin-right:6px;">VN</span>PAY Thanh toán
+                            </button>
+                            <div id="vnpayResult" style="margin-top:10px;font-size:13px;"></div>
+                        </div>
+                    </div>
+
+                    <script>
+                        function payWithVnpay(orderId) {
+                            var btn = $('#btnVnpay');
+                            var resultDiv = $('#vnpayResult');
+                            btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span> Đang kết nối VNPAY...');
+                            resultDiv.html('');
+
+                            $.ajax({
+                                url: '@Url.Action("CreateVnpayPayment", "Payment")',
+                                type: 'POST',
+                                data: { orderId: orderId },
+                                headers: { 'RequestVerificationToken': $('input[name="__RequestVerificationToken"]').first().val() },
+                                success: function(res) {
+                                    if (res.success && res.vnpayUrl) {
+                                        window.location.href = res.vnpayUrl;
+                                    } else {
+                                        resultDiv.html('<div class="alert alert-danger" style="padding:10px;border-radius:8px;font-size:13px;">❌ ' + (res.message || 'Không thể tạo thanh toán VNPAY') + '</div>');
+                                        btn.prop('disabled', false).html('<span style="font-weight:700;margin-right:6px;">VN</span>PAY Thanh toán');
+                                    }
+                                },
+                                error: function() {
+                                    resultDiv.html('<div class="alert alert-danger" style="padding:10px;border-radius:8px;font-size:13px;">❌ Lỗi kết nối. Vui lòng thử lại sau.</div>');
+                                    btn.prop('disabled', false).html('<span style="font-weight:700;margin-right:6px;">VN</span>PAY Thanh toán');
+                                }
+                            });
+                        }
+                    </script>
+                }
+
+                <!-- Shipper Info -->
+                @if (donHang.tbShipper != null)
+                {
+                    <div class="tracking-card">
+                        <h6 style="font-weight:700;margin-bottom:12px;"><i class="fas fa-truck"></i> Shipper của bạn</h6>
+                        <div class="shipper-info">
+                            <div class="shipper-avatar">@(donHang.tbShipper.tenshipper?.Substring(0,1)?.ToUpper() ?? "S")</div>
+                            <div>
+                                <div class="shipper-name">@donHang.tbShipper.tenshipper</div>
+                                <div class="shipper-phone"><i class="fa fa-phone me-1"></i>@donHang.tbShipper.tbUser?.sdt</div>
+                            </div>
+                            <button onclick="toggleChat()" class="btn btn-sm btn-success ms-auto" style="border-radius:8px;">
+                                <i class="fab fa-facebook-messenger"></i> Nhắn tin
+                            </button>
+                        </div>
+                    </div>
+                }
+            </div>
+
+            <div class="col-lg-4">
+                <!-- Order Summary -->
+                <div class="tracking-card">
+                    <h6 style="font-weight:700;margin-bottom:12px;">🧾 Chi tiết đơn hàng</h6>
+                    @foreach (var ct in donHang.tbChiTietDonHang)
+                    {
+                        <div class="order-item">
+                            <span>@ct.tbMonAn?.tenmon <span class="badge bg-secondary ms-1">x@(ct.soluong)</span></span>
+                            <span>@((ct.dongia * ct.soluong)?.ToString("N0"))đ</span>
+                        </div>
+                    }
+                    <div class="info-row">
+                        <span class="info-label">Tạm tính</span>
+                        <span class="info-value">@donHang.tongtien?.ToString("N0")đ</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Phí giao hàng</span>
+                        <span class="info-value">@donHang.phiship?.ToString("N0")đ</span>
+                    </div>
+                    <div class="order-total">
+                        <span>Tổng cộng</span>
+                        <span>@((donHang.tongtien + donHang.phiship)?.ToString("N0"))đ</span>
+                    </div>
+                </div>
+
+                <!-- Delivery Info -->
+                <div class="tracking-card">
+                    <h6 style="font-weight:700;margin-bottom:12px;"><i class="fas fa-info-circle"></i> Thông tin giao hàng</h6>
+                    <div class="info-row">
+                        <span class="info-label">Người nhận</span>
+                        <span class="info-value">@donHang.tbThongTinDatHang?.tennguoinhan</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">SĐT</span>
+                        <span class="info-value">@donHang.tbThongTinDatHang?.sdt</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Địa chỉ</span>
+                        <span class="info-value">@donHang.tbThongTinDatHang?.diachi</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Quán</span>
+                        <span class="info-value">@donHang.tbQuanAn?.tenquanan</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Thanh toán</span>
+                        <span class="info-value">@donHang.tbLoaiHinhThanhToan?.tenhinhthuc</span>
+                    </div>
+                    @if (!string.IsNullOrEmpty(donHang.ghichu))
+                    {
+                        <div class="info-row">
+                            <span class="info-label">Ghi chú</span>
+                            <span class="info-value">@donHang.ghichu</span>
+                        </div>
+                    }
+                    <div class="info-row">
+                        <span class="info-label">Ngày đặt</span>
+                        <span class="info-value">@TinhToan.GioVietNam(donHang.ngaydathang)?.ToString("dd/MM/yyyy HH:mm")</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══ CHAT FAB + BOTTOM SHEET ═══ -->
+<button class="chat-fab" id="chatFab" onclick="toggleChat()" title="Chat với đơn hàng">
+    <i class="fas fa-comment-dots"></i>
+    <span class="badge-chat" id="chatBadge" style="display:none;">1</span>
+</button>
+
+<div class="chat-sheet" id="chatSheet">
+    <div class="chat-sheet-header" onclick="toggleChat()">
+        <div style="display:flex;align-items:center;gap:8px;">
+            <i class="fab fa-facebook-messenger" style="font-size:18px;"></i>
+            <h6>Chat đơn hàng #@donHang.madh</h6>
+        </div>
+        <button onclick="event.stopPropagation();toggleChat()" title="Đóng">✕</button>
+    </div>
+    <div class="chat-sheet-messages" id="chatSheetMessages">
+        <div class="chat-bubble other">
+            <span class="label">FastShip</span>
+            Chào bạn! Đây là kênh chat trực tiếp cho đơn hàng #@donHang.madh.
+            @if (donHang.tbShipper != null) {
+                <text>@donHang.tbShipper.tenshipper sẽ liên hệ với bạn khi giao hàng.</text>
+            }
+        </div>
+    </div>
+    <!-- Quick Replies (Customer) -->
+    <div class="quick-replies" id="quickReplies">
+        <button class="quick-reply-btn" onclick="quickReply('Bạn tới đâu rồi?')"><i class="fas fa-location-dot" style="margin-right:4px;"></i>Bạn tới đâu rồi?</button>
+        <button class="quick-reply-btn" onclick="quickReply('Gửi ở bảo vệ giúp mình')">🏢 Gửi bảo vệ</button>
+        <button class="quick-reply-btn" onclick="quickReply('Đồ ăn có kèm đũa muỗng không ạ?')">🥢 Đũa muỗng?</button>
+        <button class="quick-reply-btn" onclick="quickReply('Cho mình xin số điện thoại shipper')">📞 SĐT shipper</button>
+    </div>
+    <div class="chat-sheet-input">
+        @Html.AntiForgeryToken()
+        <input type="text" id="chatInput" placeholder="Soạn tin nhắn..." onkeypress="if(event.key==='Enter')sendChatMsg()" />
+        <button onclick="sendChatMsg()"><i class="fas fa-paper-plane"></i></button>
+    </div>
+</div>
+
+@section scripts {
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+<script src="~/js/map.js"></script>
+<script>
+$(document).ready(function() {
+    // ── Initialize Map with real coordinates from DB ──
+    var map = FastShipTracking.initMap('trackingMap', @mapCenterLat, @mapCenterLng, 13);
+
+    @if (qLat != 0 && qLng != 0)
+    {
+        <text>
+        FastShipTracking.addRestaurantMarker(map, @qLat, @qLng, '@Html.Raw(donHang.tbQuanAn?.tenquanan ?? "Quán ăn")');
+        </text>
+    }
+    @if (kLat != 0 && kLng != 0)
+    {
+        <text>
+        FastShipTracking.addCustomerMarker(map, @kLat, @kLng, '@Html.Raw(donHang.tbThongTinDatHang?.tennguoinhan ?? "Khách")');
+        </text>
+    }
+
+    // ── Render Progress Bar ──
+    FastShipTracking.renderProgressBar('trackingProgress', '@donHang.trangthai');
+
+    // ── Connect SignalR ──
+    var conn = FastShipTracking.createHubConnection(@donHang.madh, {
+        onStatusChanged: function(madh, trangthai, timestamp) {                    if (madh === @donHang.madh) {
+                        FastShipTracking.updateProgressBar('trackingProgress', trangthai);
+                        // Update badge
+                        $('.tracking-card:first .badge').text(trangthai);
+                        // Update ETA
+                        updateETA(trangthai);
+
+                        // Show toast notification
+                        var icons = { 'Đã xác nhận': '👍', 'Đang chuẩn bị': '👨‍🍳', 'Đang giao': '🚚', 'Hoàn thành': '✅' };
+                var icon = icons[trangthai] || '📦';
+                showToast('info', icon + ' Đơn hàng đã chuyển sang: <strong>' + trangthai + '</strong>');
+            }
+        },
+        onLocationUpdate: function(madh, lat, lng) {
+            if (madh === @donHang.madh) {
+                FastShipTracking.updateShipperLocation(map, lat, lng, '🚚 Shipper đang giao hàng');
+            }
+        },
+        onShipperAssigned: function(madh, shipperName, shipperPhone) {
+            if (madh === @donHang.madh) {
+                showToast('info', '🚚 Đã có shipper: <strong>' + shipperName + '</strong>');
+            }
+        },                        onPaymentConfirmed: function(madh, amount) {
+                            if (madh === @donHang.madh) {
+                                showToast('success', '✅ Thanh toán đã được xác nhận!');
+                                // ═══ Ẩn QR card, hiển thị thành công ═══
+                                $('.bank-qr-card').fadeOut();
+                                $('#paymentWaitingIndicator').html('<span style="color:#28a745;">✅ Thanh toán thành công! Số tiền: ' + Number(amount || 0).toLocaleString() + 'đ</span>');
+                            }
+                        },
+                        onDeliveryScanned: function(madh, trangthai, timestamp) {
+                            if (madh === @donHang.madh) {
+                                showToast('info', '📸 Quán đã xác nhận lấy hàng! Đơn hàng chuyển sang: <strong>Đã lấy</strong>');
+                                FastShipTracking.updateProgressBar('trackingProgress', trangthai);
+                                $('.tracking-card:first .badge').text(trangthai);
+                            }
+                        },
+                        onDeliveryBypassed: function(madh, status, timestamp) {
+                            if (madh === @donHang.madh) {
+                                showToast('warning', '🛠️ Admin đã xử lý thủ công đơn hàng #' + madh + ' → <strong>' + status + '</strong>');
+                                FastShipTracking.updateProgressBar('trackingProgress', status);
+                                $('.tracking-card:first .badge').text(status);
+                            }
+                        },
+                        // ═══ REAL-TIME CHAT: L?ng nghe tin nh?n t? m?i role ═══
+
+        onConnected: function(conn) {
+            console.log('SignalR connected for order tracking');
+            // Wire up real-time chat listener
+            conn.on('orderMessage', function(msg, orderId, senderName, senderRole, connId) {
+                if (orderId === @donHang.madh && senderRole !== 'Khách hàng') {
+                    appendChatMsg(msg, 'other', (senderRole || '') + ' - ' + (senderName || ''));
+                    var sheet = document.getElementById('chatSheet');
+                    if (!sheet.classList.contains('open')) {
+                        var badge = document.getElementById('chatBadge');
+                        badge.style.display = 'flex';
+                        setTimeout(function(){ badge.style.display = 'none'; }, 5000);
+                    }
+                    loadChatMessages();
+                }
+            });
+            // Also listen for admin messages
+            conn.on('adminMessage', function(msg, orderId, sender) {
+                if (orderId === @donHang.madh) {
+                    appendChatMsg(msg, 'other', 'Admin');
+                    loadChatMessages();
+                }
+            });
+            // Listen for shipper messages (Shipper g?i qua CustomerSendMessage)
+            conn.on('shipperMessage', function(msg, orderId, senderName) {
+                if (orderId === @donHang.madh) {
+                    appendChatMsg(msg, 'other', 'Shipper - ' + (senderName || ''));
+                    loadChatMessages();
+                }
+            });
+        },
+        onError: function(err) {
+            console.error('SignalR error:', err);
+        }
+    });
+
+    // ═══ Chat Sheet Functions ═══
+    function toggleChat() {
+        var sheet = document.getElementById('chatSheet');
+        var fab = document.getElementById('chatFab');
+        if (sheet.classList.contains('open')) {
+            sheet.classList.remove('open');
+            fab.style.display = 'flex';
+        } else {
+            sheet.classList.add('open');
+            fab.style.display = 'none';
+            // Load messages when opening
+            loadChatMessages();
+            setTimeout(function(){
+                var msgs = document.getElementById('chatSheetMessages');
+                msgs.scrollTop = msgs.scrollHeight;
+            }, 100);
+        }
+    }
+
+    function loadChatMessages() {
+        var userId = @(user?.userid ?? 0);
+        if (!userId) return;
+        $.ajax({
+            url: '@Url.Action("GetMyMessages", "AdminChat")',
+            type: 'GET', data: { orderId: @donHang.madh },
+            success: function(res) {
+                if (!res.success || !res.data || res.data.length === 0) return;
+                var c = document.getElementById('chatSheetMessages');
+                // Keep only welcome message, replace rest
+                var welcome = c.querySelector('.chat-bubble:first-child');
+                c.innerHTML = '';
+                if (welcome) c.appendChild(welcome);
+                res.data.forEach(function(msg) {
+                    var isOwn = msg.sender === 'Khách hàng';
+                    appendChatMsg(msg.content, isOwn ? 'own' : 'other', isOwn ? 'Bạn' : msg.sender);
+                });
+                c.scrollTop = c.scrollHeight;
+            }
+        });
+    }
+
+    function sendChatMsg() {
+        var input = document.getElementById('chatInput');
+        var msg = input.value.trim();
+        if (!msg) return;
+        appendChatMsg(msg, 'own', 'Bạn');
+        input.value = '';
+        var token = document.querySelector('#chatSheet input[name="__RequestVerificationToken"]')?.value || '';
+        $.ajax({
+            url: '@Url.Action("CustomerSendMessage", "AdminChat")',
+            type: 'POST',
+            data: { orderId: @donHang.madh, message: msg },
+            headers: { 'RequestVerificationToken': token },
+            error: function() { appendChatMsg('❌ Lỗi gửi tin nhắn', 'other', 'Hệ thống'); }
+        });
+    }
+
+    function quickReply(text) {
+        document.getElementById('chatInput').value = text;
+        sendChatMsg();
+    }
+
+    function appendChatMsg(text, type, label) {
+        var c = document.getElementById('chatSheetMessages');
+        var d = document.createElement('div');
+        d.className = 'chat-bubble ' + type;
+        var time = new Date().toLocaleTimeString('vi-VN', {hour:'2-digit',minute:'2-digit'});
+        var safeText = (text || '').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g, '<br/>');
+        d.innerHTML = '<span class="label">' + (label || '') + '</span>'
+            + safeText
+            + '<span class="time">' + time + '</span>';
+        c.appendChild(d);
+        c.scrollTop = c.scrollHeight;
+    }
+
+    function showToast(type, msg) {
+        var color = type === 'error' ? '#dc3545' : (type === 'success' ? '#28a745' : '#3CB815');
+        var toast = $('<div style="position:fixed;top:80px;right:20px;z-index:9999;background:' + color + ';color:#fff;padding:14px 20px;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.2);font-size:13px;max-width:340px;animation:slideIn .3s ease;">' + msg + '</div>');
+        $('body').append(toast);
+        setTimeout(function(){ toast.fadeOut(400, function(){ $(this).remove(); }); }, 4000);
+    }
+
+    // ─── ETA Estimator ───
+    function updateETA(status) {
+        var etaMap = {
+            'Đã đặt': '30-45 phút',
+            'Đã xác nhận': '25-35 phút',
+            'Đang chuẩn bị': '15-25 phút',
+            'Đã lấy': '10-15 phút',
+            'Đang giao': '5-10 phút',
+            'Hoàn thành': 'Đã giao hàng',
+            'Đã hủy': 'Đã hủy'
+        };
+        var eta = etaMap[status] || '...';
+        $('#etaText').text(eta);
+        $('#etaDisplay').show();
+    }
+    updateETA('@donHang.trangthai');
+
+    // ═══ POLLING: T? d?ng ki?m tra tr?ng thái thanh toán m?i 10 giây ───
+    // ponytail: Fix #3 — polling cho don "Ch? thanh toán" de tu d?ng c?p nh?t khi webhook xác nh?n
+    var paymentPollTimer = null;
+    function startPaymentPolling(orderId) {
+        if (paymentPollTimer) clearInterval(paymentPollTimer);
+        var trangthai = '@donHang.trangthai';
+        if (trangthai !== 'Chờ thanh toán') {
+            $('#paymentWaitingIndicator').html('<span style="color:#28a745;">✅ Thanh toán đã được xác nhận!</span>');
+            return;
+        }
+        paymentPollTimer = setInterval(function() {
+            $.get('@Url.Action("CheckPaymentStatus", "Payment")', { madh: orderId })
+                .done(function(res) {
+                    if (res.success) {
+                        clearInterval(paymentPollTimer);
+                        paymentPollTimer = null;
+                        $('.bank-qr-card').fadeOut();
+                        $('#paymentWaitingIndicator').html('<span style="color:#28a745;">✅ Thanh toán thành công!</span>');
+                        $('#verifyResult').html('<div class="alert alert-success" style="padding:10px;border-radius:8px;font-size:13px;">✅ ' + (res.message || '') + '</div>');
+                        $('#btnVerifyPayment').hide();
+                    }
+                })
+                .fail(function() {
+                    // Silent retry — không hi?n l?i cho user
+                    console.log('Payment polling failed — will retry');
+                });
+        }, 10000); // 10 giây
+    }
+
+    // Kh?i d?ng polling n?u d?n dang "Ch? thanh toán"
+    var initialTrangthai = '@donHang.trangthai';
+    if (initialTrangthai === 'Chờ thanh toán') {
+        startPaymentPolling(@donHang.madh);
+    }
+
+    // ═══ Bank Transfer: Verify payment fallback ═══
+    window.verifyBankPayment = function(orderId) {
+        var btn = $('#btnVerifyPayment');
+        var resultDiv = $('#verifyResult');
+        var indicator = $('#paymentWaitingIndicator');
+
+        btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span> Đang kiểm tra...');
+        resultDiv.html('');
+
+        $.get('@Url.Action("VerifyBankTransaction", "Payment")', { madh: orderId })
+            .done(function(res) {
+                if (res.success) {
+                    // D?ng polling vì dã thanh toán thành công
+                    if (paymentPollTimer) {
+                        clearInterval(paymentPollTimer);
+                        paymentPollTimer = null;
+                    }
+                    resultDiv.html('<div class="alert alert-success" style="padding:10px;border-radius:8px;font-size:13px;">✅ ' + res.message + ' <a href="/Cart/OrderTracking/' + orderId + '" class="alert-link">Tải lại trang</a></div>');
+                    $('.bank-qr-card').fadeOut();
+                    btn.hide();
+                    indicator.html('<span style="color:#28a745;">✅ Thanh toán đã được xác nhận!</span>');
+                } else {
+                    resultDiv.html('<div class="alert alert-info" style="padding:10px;border-radius:8px;font-size:13px;">🕐 ' + res.message + '</div>');
+                    btn.prop('disabled', false).html('<i class="fa fa-check-circle me-1"></i> Tôi đã chuyển khoản thành công');
+                }
+            })
+            .fail(function() {
+                resultDiv.html('<div class="alert alert-danger" style="padding:10px;border-radius:8px;font-size:13px;">❌ Lỗi kết nối. Vui lòng thử lại sau.</div>');
+                btn.prop('disabled', false).html('<i class="fa fa-check-circle me-1"></i> Tôi đã chuyển khoản thành công');
+            });
+    };
+    };
+
+});
+</script>
+}

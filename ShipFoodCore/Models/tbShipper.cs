@@ -1,0 +1,57 @@
+// ============================================================
+// 🛵 tbShipper — Model Shipper (Delivery Driver)
+// ============================================================
+// Ý nghĩa: Lưu thông tin shipper: tên, địa chỉ, tọa độ, đánh giá, trạng thái
+// Chức năng: FK→tbUser.userid, navigation tới tbDonHang, tbTinNhan
+// KEYWORDS: shipper, delivery, driver, giao hàng, tài xế, ship
+// ============================================================
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+
+namespace ShipFood.Models;
+
+[Table("tbShipper")]
+public partial class tbShipper
+{
+    // ════════════════════════════════════════════════════════════
+    // 🛵 KHỐI THÔNG TIN SHIPPER (Delivery Driver)
+    // ════════════════════════════════════════════════════════════
+    // KEYWORDS: shipper, tenshipper, diachi, toado, trangthai
+    // → userid = PK (1:1 với tbUser — role "Shipper")
+    // → TẠO BỞI: HomeController.Signup (loaitaikhoan="Shipper"),
+    //   AdminController.PostTaiKhoan
+    // → TRANGTHAI: "Đang hoạt động"/"Không hoạt động" (OrderStatus)
+    // → NAVIGATION: tbUser (tài khoản), tbDonHangs (đơn đã nhận),
+    //   tbTinNhans (chat)
+
+    [Key]
+    [DatabaseGenerated(DatabaseGeneratedOption.None)]
+    public int userid { get; set; }
+
+    [Required]
+    [MaxLength(50)]
+    public string tenshipper { get; set; } = null!;
+
+    [Required]
+    [MaxLength(250)]
+    public string diachi { get; set; } = null!;
+
+    [MaxLength(100)]
+    public string? toado { get; set; }
+
+    [Column(TypeName = "decimal(2,1)")]
+    public decimal? diemdanhgia { get; set; }
+
+    public int? soluotdanhgia { get; set; }
+
+    [MaxLength(50)]
+    public string? trangthai { get; set; }
+
+    [MaxLength(500)]
+    public string? hinhanh { get; set; }
+
+    // Navigation
+    public virtual tbUser tbUser { get; set; } = null!;
+    public virtual ICollection<tbDonHang> tbDonHangs { get; set; } = new HashSet<tbDonHang>();
+    public virtual ICollection<tbTinNhan> tbTinNhans { get; set; } = new HashSet<tbTinNhan>();
+}

@@ -1,0 +1,284 @@
+@inject ShipFood.Models.dbFoodyEntities _db
+@{
+    var userJson = Context.Session.GetString("user");
+    var currentUser = userJson != null ? JsonSerializer.Deserialize<tbUser>(userJson) : null;
+    ShipFood.Models.tbQuanAn? QuanAn = currentUser != null ? _db.tbQuanAn.Find(currentUser.userid) : null;
+    // ponytail: active nav detection — không set ViewBag.Title mặc định (tránh ghi đè title của view)
+    var action = ViewContext.RouteData.Values["action"]?.ToString() ?? "";
+    string NavActive(params string[] actions) => actions.Contains(action) ? "mm-active" : "";
+}
+
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>@(string.IsNullOrEmpty(ViewBag.Title) ? "FastShip - Quản lý quán" : ViewBag.Title + " | FastShip")</title>
+    <!-- Favicon icon -->
+    <link href="~/Source/Home/img/favicon.ico" rel="icon" />
+    <link href="~/Source/Restaurant/vendor/bootstrap-select/dist/css/bootstrap-select.min.css" rel="stylesheet" />
+    <link href="~/Source/Restaurant/vendor/datatables/css/jquery.dataTables.min.css" rel="stylesheet" />
+    <link href="~/Source/Restaurant/css/style-restaurant.css" rel="stylesheet" />
+    <!-- Font Awesome 5 (CDN) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.10.0/css/all.min.css" onerror="var s=document.createElement('link');s.rel='stylesheet';s.href='https://use.fontawesome.com/releases/v5.10.0/css/all.css';document.head.appendChild(s);console.warn('FA CDN fallback');" />
+    <!-- Bootstrap 5.3 (CDN) -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM" crossorigin="anonymous">
+    <!-- Global Design System v4.0 -->
+    <link href="~/Source/Shared/css/fastship-design-tokens.css" rel="stylesheet" />
+    <link href="~/Source/Shared/css/fastship-animations.css" rel="stylesheet" />
+    <link href="~/Source/Shared/css/fs-dashboard-overrides.css" rel="stylesheet" />
+    <style>
+        /* ── Restaurant layout refinements (fs-* tokens) ── */
+        /* Sidebar add-menu card */
+        .add-menu-sidebar {
+            margin: 12px 16px;
+            padding: 18px 16px;
+            border-radius: 14px;
+            background: var(--fs-green-bg, rgba(60,184,21,.07));
+            border: 1.5px dashed var(--fs-green, #3CB815);
+            text-align: center;
+        }
+        .add-menu-sidebar .fs-add-icon { font-size: 26px; color: var(--fs-green, #3CB815); margin-bottom: 8px; }
+        .add-menu-sidebar p { font-size: 13px; color: var(--fs-muted, #6b7280); margin-bottom: 12px; line-height: 1.45; }
+        .add-menu-sidebar .btn { width: 100%; border-radius: 10px; font-weight: 600; }
+
+        /* Nav item active (already styled in fs-dashboard-overrides, minor tweaks) */
+        .deznav .metismenu > li > a { font-size: 13.5px; }
+
+        /* Store status pill */
+        .fs-store-pill {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 4px 14px; border-radius: 20px;
+            font-size: 12px; font-weight: 700;
+        }
+        .fs-store-pill.open  { background: #f0fdf4; color: #16a34a; }
+        .fs-store-pill.closed { background: #fef2f2; color: #dc2626; }
+        .fs-store-pill i { font-size: 8px; }
+
+        @@media (max-width: 576px) {
+            .form-head .me-auto { margin-right: 0; }
+            h2.text-black { font-size: 1.2rem; }
+        }
+    </style>
+</head>
+
+<body>
+    <!--*******************
+        Preloader start
+    ********************-->
+    <div id="preloader">
+        <div class="sk-three-bounce">
+            <div class="sk-child sk-bounce1"></div>
+            <div class="sk-child sk-bounce2"></div>
+            <div class="sk-child sk-bounce3"></div>
+        </div>
+    </div>
+    <!--*******************
+        Preloader end
+    ********************-->
+    <!--**********************************
+        Main wrapper start
+    ***********************************-->
+    <div id="main-wrapper">
+        <!--**********************************
+              Nav header start
+          ***********************************-->
+        <div class="nav-header">
+            <a href="@Url.Action("Index", "Restaurant")" class="brand-logo">
+                <img class="logo-compact" src="~/Source/Restaurant/images/FASTSHIP.png" alt="FastShip" />
+                <img class="brand-title" src="~/Source/Restaurant/images/FASTSHIP.png" alt="FastShip" />
+            </a>
+            <div class="nav-control">
+                <div class="hamburger"><span class="line"></span><span class="line"></span><span class="line"></span></div>
+            </div>
+        </div>
+        <!--**********************************
+              Nav header end
+          ***********************************-->
+
+        <!--**********************************
+              Header start
+          ***********************************-->
+        <div class="header" style="z-index:1050;">
+            <div class="header-content">
+                <nav class="navbar navbar-expand">
+                    <div class="collapse navbar-collapse justify-content-between">
+                        <div class="header-left d-none d-md-flex align-items-center ps-3">
+                            <nav aria-label="breadcrumb">
+                                <ol class="breadcrumb mb-0 bg-transparent p-0" style="font-size: 14px;">
+                                    <li class="breadcrumb-item"><a href="@Url.Action("Index", "Restaurant")" class="text-muted"><i class="fas fa-home me-1"></i>Quản lý quán</a></li>
+                                    @if (!string.IsNullOrEmpty(ViewBag.Title))
+                                    {
+                                        <li class="breadcrumb-item active" aria-current="page" style="color: var(--fs-green); font-weight: 500;">@ViewBag.Title</li>
+                                    }
+                                </ol>
+                            </nav>
+                        </div>
+
+                        <ul class="navbar-nav header-right">
+                            <!-- Store open/close status -->
+                            <li class="nav-item d-flex align-items-center gap-2 me-3">
+                                @if (QuanAn?.trangthai == "Đang mở cửa")
+                                {
+                                    <span class="fs-store-pill open"><i class="fas fa-circle"></i> Đang mở</span>
+                                    <form action="@Url.Action("updateStatus", "Restaurant")" method="post" style="margin:0; padding:0; display:inline;">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" class="btn btn-sm btn-outline" title="Đóng cửa quán"><i class="fas fa-pause me-1"></i>Đóng</button>
+                                    </form>
+                                }
+                                @if (QuanAn?.trangthai == "Đóng cửa")
+                                {
+                                    <span class="fs-store-pill closed"><i class="fas fa-circle"></i> Đóng cửa</span>
+                                    <form action="@Url.Action("updateStatus", "Restaurant")" method="post" style="margin:0; padding:0; display:inline;">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" class="btn btn-sm btn-success" title="Mở cửa quán"><i class="fas fa-play me-1"></i>Mở</button>
+                                    </form>
+                                }
+                            </li>
+
+                            <!-- ═══ RESTAURANT: Avatar dropdown (modern minimalist) ═══ -->
+                            <li class="nav-item dropdown" style="margin-right:12px;">
+                                <a class="nav-link dropdown-toggle d-flex align-items-center gap-2 fs-nav-hover" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"
+                                   style="padding:4px 8px;border-radius:8px;">
+                                    <div style="width:28px;height:28px;border-radius:50%;background:var(--fs-green,#3CB815);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;">@(QuanAn?.tbUser?.username?.Substring(0,1)?.ToUpper() ?? "Q")</div>
+                                    <span class="d-none d-lg-inline text-muted small fw-500">@(QuanAn?.tbUser?.username ?? "Quán ăn")</span>
+                                </a>
+                                <ul class="dropdown-menu dropdown-menu-right" style="min-width:160px;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.12);border:1px solid rgba(0,0,0,.06);">
+                                    <li><a class="dropdown-item d-flex align-items-center gap-2 py-2" href="~/Restaurant"><i class="fas fa-chart-bar" style="width:16px;color:var(--fs-green);"></i> Dashboard</a></li>
+                                    <li><a class="dropdown-item d-flex align-items-center gap-2 py-2" href="~/Restaurant/OrderList"><i class="fas fa-clipboard-list" style="width:16px;color:var(--fs-green);"></i> Đơn hàng</a></li>
+                                    <li><a class="dropdown-item d-flex align-items-center gap-2 py-2" href="~/Restaurant/Profile"><i class="fas fa-user" style="width:16px;color:var(--fs-green);"></i> Hồ sơ</a></li>
+                                    <li><hr class="dropdown-divider my-1"></li>
+                                    <li><a href="/Home/Logout" class="dropdown-item d-flex align-items-center gap-2 py-2 text-danger"><i class="fas fa-sign-out-alt" style="width:16px;"></i> Đăng xuất</a></li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </div>
+                </nav>
+            </div>
+        </div>
+        <!--**********************************
+              Header end
+          ***********************************-->
+
+        <!--**********************************
+              Sidebar start
+          ***********************************-->
+        <div class="deznav">
+            <div class="deznav-scroll">
+                <ul class="metismenu" id="menu">
+                    <li class="@NavActive("Index")">
+                        <a href="@Url.Action("Index", "Restaurant")">
+                            <i class="fas fa-chart-bar"></i>
+                            <span class="nav-text">Dashboard</span>
+                        </a>
+                    </li>
+                    <li class="@NavActive("Analytics")">
+                        <a href="@Url.Action("Analytics", "Restaurant")">
+                            <i class="fas fa-chart-line"></i>
+                            <span class="nav-text">Phân tích</span>
+                        </a>
+                    </li>
+                    <li class="@NavActive("Review")">
+                        <a href="@Url.Action("Review", "Restaurant")">
+                            <i class="fas fa-star"></i>
+                            <span class="nav-text">Đánh giá</span>
+                        </a>
+                    </li>
+                    <li class="@NavActive("OrderList")">
+                        <a href="@Url.Action("OrderList", "Restaurant")">
+                            <i class="fas fa-clipboard-list"></i>
+                            <span class="nav-text">Danh sách đơn hàng</span>
+                        </a>
+                    </li>
+                    <li class="@NavActive("Discount")">
+                        <a href="@Url.Action("Discount", "Restaurant")">
+                            <i class="fas fa-tags"></i>
+                            <span class="nav-text">Khuyến mãi</span>
+                        </a>
+                    </li>
+                    <li class="@NavActive("ProductList")">
+                        <a href="@Url.Action("ProductList", "Restaurant")">
+                            <i class="fas fa-utensils"></i>
+                            <span class="nav-text">Danh sách thực đơn</span>
+                        </a>
+                    </li>
+                    <li class="@NavActive("ProductDetail")">
+                        <a href="@Url.Action("ProductDetail", "Restaurant")">
+                            <i class="fas fa-plus-circle"></i>
+                            <span class="nav-text">Thêm món ăn</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="~/edelivery/MerchantScan">
+                            <i class="fas fa-qrcode"></i>
+                            <span class="nav-text">Quét mã QR</span>
+                        </a>
+                    </li>
+                    <li class="@NavActive("Profile")">
+                        <a href="@Url.Action("Profile", "Restaurant")">
+                            <i class="fas fa-user"></i>
+                            <span class="nav-text">Hồ sơ</span>
+                        </a>
+                    </li>
+                </ul>
+
+                <div class="add-menu-sidebar">
+                    <div class="fs-add-icon"><i class="fas fa-utensils"></i></div>
+                    <p>Thêm món ăn mới cho quán của bạn</p>
+                    <a href="@Url.Action("ProductDetail", "Restaurant")" class="btn btn-success"><i class="fas fa-plus me-1"></i>Thêm thực đơn</a>
+                </div>
+            </div>
+        </div>
+        <!--**********************************
+              Sidebar end
+          ***********************************-->
+
+        <!--**********************************
+              Content body start
+          ***********************************-->
+        <div class="content-body">
+            @RenderBody()
+        </div>
+        <!--**********************************
+              Content body end
+          ***********************************-->
+    </div>
+    <!--**********************************
+        Main wrapper end
+    ***********************************-->
+
+    <!--**********************************
+        Scripts
+    ***********************************-->
+    <!-- Bootstrap 5.3 JS bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" integrity="sha384-geWF76RCwLtnZ8qwWowPQNguL3RmwHVBC9FhGdlKrxdiJJigb/j/68SIy3Te4Bkz" crossorigin="anonymous"></script>
+    <!-- Required vendors -->
+    <script src="~/Source/Restaurant/vendor/global/global.min.js"></script>
+    <!-- peity.js for sparkline charts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/peity/3.3.0/jquery.peity.min.js"></script>
+    <script src="~/Source/Restaurant/vendor/bootstrap-select/dist/js/bootstrap-select.min.js"></script>
+    <script src="~/Source/Restaurant/vendor/chart.js/Chart.bundle.min.js"></script>
+    <script src="~/Source/Restaurant/js/custom.min.js"></script>
+    <script src="~/Source/Restaurant/js/deznav-init.js"></script>
+
+    <!-- Counter Up -->
+    <script src="~/Source/Restaurant/vendor/waypoints/jquery.waypoints.min.js"></script>
+    <script src="~/Source/Restaurant/vendor/jquery.counterup/jquery.counterup.min.js"></script>
+
+    <!-- Apex Chart -->
+    <script src="~/Source/Restaurant/vendor/apexchart/apexchart.js"></script>
+
+    <!-- Dashboard 1 -->
+    <script src="~/Source/Restaurant/js/dashboard/dashboard-1.js"></script>
+    <script src="~/Source/Restaurant/vendor/datatables/js/jquery.dataTables.min.js"></script>
+
+    @RenderSection("scripts", required: false)
+    <script>
+        // ═══ Chặn back button hiển thị trang khách hàng (bfcache) — reload để RoleGuard redirect về đúng role ═══
+        window.addEventListener('pageshow', function (e) {
+            if (e.persisted) { window.location.reload(); }
+        });
+    </script>
+</body>
+</html>
