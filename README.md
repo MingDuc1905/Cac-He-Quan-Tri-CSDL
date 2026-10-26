@@ -2,8 +2,6 @@
 
 Nền tảng đặt món & giao đồ ăn online — ASP.NET Core 8 MVC + PostgreSQL + SignalR + Gemini AI.
 
-> Đồ án môn học (Thương mại điện tử — HUFLIT)
-
 **Live demo:** https://fastship-web.onrender.com/
 
 ## Vai trò
