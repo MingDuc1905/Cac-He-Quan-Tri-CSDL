@@ -65,11 +65,3 @@ seed.sql                   # Dữ liệu mẫu PostgreSQL
 Dockerfile
 ```
 
-## Known issues / Chưa làm
-
-- Thanh toán mới ở mức Sandbox (MoMo/VNPAY), chưa tích hợp production.
-- Dùng `EnsureCreated`, chưa chuyển sang EF Core Migrations chuẩn.
-
-## License
-
-MIT — [MingDuc1905](https://github.com/MingDuc1905)
