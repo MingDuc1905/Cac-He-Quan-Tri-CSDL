@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ShipFood — Oracle 23ai Duality View & ORDS Demo</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="brand">
+        <div class="brand-icon">🍣</div>
+        <div>
+          <h1>ShipFood Core — Omnichannel Order Hub</h1>
+          <p class="subtitle">Minh hoạ kiến trúc <strong>Oracle 23ai JSON Relational Duality Views</strong> &amp; <strong>ORDS REST API</strong></p>
+        </div>
+      </div>
+      <div class="header-badges">
+        <span class="badge badge-tech">Oracle 23ai</span>
+        <span class="badge badge-tech">Auto-REST ORDS</span>
+        <span class="badge badge-tech">Duality View</span>
+      </div>
+    </header>
+
+    <!-- Top Toolbar: Endpoint Config & Mode Switcher -->
+    <section class="toolbar-card">
+      <div class="toolbar-item">
+        <label for="ordsUrl"><strong>ORDS Base URL:</strong></label>
+        <input type="text" id="ordsUrl" value="http://localhost:8080/ords/shipfood" class="input-text">
+      </div>
+      <div class="toolbar-item">
+        <label for="modeSelect"><strong>Chế độ hoạt động:</strong></label>
+        <select id="modeSelect" class="select-box">
+          <option value="mock" selected>Mock Data (Offline Simulation)</option>
+          <option value="live">Live ORDS (Oracle 23ai Server)</option>
+        </select>
+      </div>
+      <div class="toolbar-item">
+        <button id="btnTestConn" class="btn btn-secondary">Kiểm tra kết nối</button>
+        <button id="btnReloadData" class="btn btn-primary">Tải lại dữ liệu</button>
+      </div>
+      <div class="status-indicator">
+        <span class="dot" id="connDot"></span>
+        <span id="connStatusText">Đang dùng Mock Data</span>
+      </div>
+    </section>
+
+    <!-- KPI Cards -->
+    <section class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-title">Tổng đơn hàng</div>
+        <div class="kpi-value" id="kpiTotalOrders">0</div>
+        <div class="kpi-hint">Từ DV_DON_HANG</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-title">Đơn đang xử lý</div>
+        <div class="kpi-value" id="kpiProcessingOrders">0</div>
+        <div class="kpi-hint">Đang chuẩn bị / Đang giao</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-title">Đơn hoàn thành</div>
+        <div class="kpi-value" id="kpiCompletedOrders">0</div>
+        <div class="kpi-hint">Giao thành công</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-title">Tổng doanh thu</div>
+        <div class="kpi-value highlight" id="kpiTotalRevenue">0 ₫</div>
+        <div class="kpi-hint">Bao gồm ship &amp; dịch vụ</div>
+      </div>
+    </section>
+
+    <!-- Main Content Tabs -->
+    <nav class="nav-tabs">
+      <button class="tab-btn active" data-tab="tab-orders">📦 Quản lý Đơn hàng (DV_DON_HANG)</button>
+      <button class="tab-btn" data-tab="tab-customers">👤 Khách hàng (DV_KHACH_HANG)</button>
+      <button class="tab-btn" data-tab="tab-menu">🍜 Thực đơn &amp; Quán (DV_MON_AN)</button>
+      <button class="tab-btn" data-tab="tab-console">⚡ ORDS Inspector &amp; Logs</button>
+    </nav>
+
+    <!-- Tab 1: Orders -->
+    <main id="tab-orders" class="tab-content active">
+      <div class="section-actions">
+        <h2>Danh sách đơn hàng (JSON Relational Duality View)</h2>
+        <div>
+          <button id="btnOpenCreateModal" class="btn btn-success">+ Đặt đơn hàng mới (POST)</button>
+        </div>
+      </div>
+
+      <div class="table-wrapper">
+        <table class="data-table" id="ordersTable">
+          <thead>
+            <tr>
+              <th>Mã ĐH</th>
+              <th>Thời gian</th>
+              <th>Quán ăn</th>
+              <th>Người nhận</th>
+              <th>Trạng thái</th>
+              <th>Tổng tiền</th>
+              <th>Hình thức TT</th>
+              <th>Hành động</th>
+            </tr>
+          </thead>
+          <tbody id="ordersTableBody">
+            <!-- Dynamic rows -->
+          </tbody>
+        </table>
+      </div>
+    </main>
+
+    <!-- Tab 2: Customers -->
+    <section id="tab-customers" class="tab-content">
+      <div class="section-actions">
+        <h2>Khách hàng &amp; Sổ địa chỉ (DV_KHACH_HANG)</h2>
+      </div>
+      <div class="cards-grid" id="customersGrid">
+        <!-- Dynamic customer cards -->
+      </div>
+    </section>
+
+    <!-- Tab 3: Menu & Restaurants -->
+    <section id="tab-menu" class="tab-content">
+      <div class="section-actions">
+        <h2>Món ăn &amp; Biến thể kích thước (DV_MON_AN)</h2>
+      </div>
+      <div class="cards-grid" id="menuGrid">
+        <!-- Dynamic menu items -->
+      </div>
+    </section>
+
+    <!-- Tab 4: Console & Activity Log -->
+    <section id="tab-console" class="tab-content">
+      <div class="section-actions">
+        <h2>ORDS HTTP Inspector &amp; Activity Log</h2>
+        <button id="btnClearLog" class="btn btn-secondary">Xoá Log</button>
+      </div>
+      <div class="log-container" id="logConsole">
+        <div class="log-entry log-info">[System] Ứng dụng khởi chạy thành công. Sẵn sàng giao tiếp với ORDS.</div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Modal: View JSON Duality Details -->
+  <div class="modal" id="jsonModal">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-header">
+        <h3 id="jsonModalTitle">Chi tiết JSON Duality View 3 Cấp</h3>
+        <button class="modal-close" data-close="jsonModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-tabs">
+          <button class="subtab-btn active" data-subtab="view-tree">Giao diện phân cấp (Tree View)</button>
+          <button class="subtab-btn" data-subtab="view-raw">Mã nguồn JSON (Raw REST Payload)</button>
+        </div>
+        <div id="view-tree" class="subtab-content active">
+          <div id="treeViewContainer"></div>
+        </div>
+        <div id="view-raw" class="subtab-content">
+          <pre class="code-block"><code id="rawJsonCode"></code></pre>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-close="jsonModal">Đóng</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Create New Order -->
+  <div class="modal" id="createOrderModal">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3>Tạo Đơn Hàng Mới (POST qua DV_DON_HANG)</h3>
+        <button class="modal-close" data-close="createOrderModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="createOrderForm">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Quán ăn:</label>
+              <select id="formQuanAn" class="select-box" required></select>
+            </div>
+            <div class="form-group">
+              <label>Khách hàng:</label>
+              <select id="formKhachHang" class="select-box" required></select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Địa chỉ nhận hàng:</label>
+              <input type="text" id="formDiaChi" class="input-text" required value="123 Nguyễn Văn Cừ, P.4, Q.5, TP.HCM">
+            </div>
+            <div class="form-group">
+              <label>Hình thức thanh toán:</label>
+              <select id="formHTTT" class="select-box">
+                <option value="1">Ví điện tử ShipFood</option>
+                <option value="2">Tiền mặt (COD)</option>
+                <option value="3">MoMo</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="items-builder">
+            <h4>Danh sách món đặt (Chi tiết lồng WITH INSERT):</h4>
+            <div id="orderItemsContainer"></div>
+            <button type="button" id="btnAddItemRow" class="btn btn-secondary btn-sm">+ Thêm món</button>
+          </div>
+
+          <div class="form-group" style="margin-top: 15px;">
+            <label>Ghi chú đơn hàng:</label>
+            <input type="text" id="formGhiChu" class="input-text" placeholder="Ví dụ: Ít đá, nhiều trân châu, không cay...">
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-close="createOrderModal">Huỷ</button>
+        <button id="btnSubmitOrder" class="btn btn-primary">Xác nhận tạo đơn (POST)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Change Status & State Machine Test -->
+  <div class="modal" id="statusModal">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3>Cập nhật Trạng thái (Trigger State Machine)</h3>
+        <button class="modal-close" data-close="statusModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p>Đơn hàng: <strong id="statusModalOrderId">#0</strong></p>
+        <p>Trạng thái hiện tại: <span class="badge" id="statusModalCurrentBadge">Chờ xác nhận</span></p>
+
+        <div class="state-actions-box">
+          <h4>1. Chuyển trạng thái hợp lệ (Trigger Pass):</h4>
+          <div id="validStateButtons" class="btn-group"></div>
+
+          <h4 style="margin-top: 20px;">2. Thử chuyển sai quy tắc (Test lỗi ORA-20010):</h4>
+          <p class="hint-text">Trigger <code>trg_kiem_soat_trang_thai_don</code> sẽ từ chối và bắn mã lỗi ORA-20010.</p>
+          <div id="invalidStateButtons" class="btn-group"></div>
+
+          <h4 style="margin-top: 20px;">3. Test Boundary Duality View (Sửa Quán ăn lồng):</h4>
+          <p class="hint-text">Thuộc tính <code>quanAn</code> được gắn <code>WITH NOUPDATE</code> nên Oracle sẽ từ chối.</p>
+          <button id="btnTestBoundaryUpdate" class="btn btn-warning">Sửa tên quán trong đơn hàng</button>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-close="statusModal">Đóng</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

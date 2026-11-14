@@ -1,0 +1,121 @@
+{
+  "info": {
+    "_postman_id": "c1f7a4b8-29a3-48e2-b1c9-7df90234a9b5",
+    "name": "ShipFood Oracle 23ai ORDS Suite",
+    "description": "Bộ kịch bản kiểm thử REST API cho Oracle 23ai JSON Relational Duality Views qua ORDS (Đồ án Hệ Quản Trị CSDL - HUFLIT Đề tài 15).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080/ords/shipfood",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. GET Danh Sách Đơn Hàng",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Accept", "value": "application/json" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/dv_don_hang/",
+          "host": ["{{baseUrl}}"],
+          "path": ["dv_don_hang", ""]
+        }
+      }
+    },
+    {
+      "name": "2. GET Chi Tiết Đơn Hàng (Nested JSON 3 Cấp)",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Accept", "value": "application/json" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/dv_don_hang/1",
+          "host": ["{{baseUrl}}"],
+          "path": ["dv_don_hang", "1"]
+        }
+      }
+    },
+    {
+      "name": "3. POST Tạo Đơn Hàng Kèm Chi Tiết Lồng",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Accept", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"_id\": 9999,\n  \"ngaydathang\": \"2026-11-14T10:00:00Z\",\n  \"trangthai\": \"Chờ xác nhận\",\n  \"tongtien\": 125000,\n  \"phiship\": 15000,\n  \"phidichvu\": 5000,\n  \"ghichu\": \"Test qua Postman\",\n  \"quanAn\": { \"userid\": 1 },\n  \"giaoHang\": { \"mattdh\": 1 },\n  \"thanhToan\": { \"mahttt\": 1 },\n  \"chiTiet\": [\n    {\n      \"mactdh\": 99901,\n      \"soluong\": 2,\n      \"dongia\": 45000,\n      \"bienThe\": { \"id\": 1 }\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/dv_don_hang/",
+          "host": ["{{baseUrl}}"],
+          "path": ["dv_don_hang", ""]
+        }
+      }
+    },
+    {
+      "name": "4. PUT Đổi Trạng Thái Hợp Lệ (State Machine)",
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Accept", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"_id\": 9999,\n  \"trangthai\": \"Đã đặt\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/dv_don_hang/9999",
+          "host": ["{{baseUrl}}"],
+          "path": ["dv_don_hang", "9999"]
+        }
+      }
+    },
+    {
+      "name": "5. PUT Đổi Trạng Thái Bị Chặn (ORA-20010)",
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Accept", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"_id\": 9999,\n  \"trangthai\": \"Chờ xác nhận\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/dv_don_hang/9999",
+          "host": ["{{baseUrl}}"],
+          "path": ["dv_don_hang", "9999"]
+        }
+      }
+    },
+    {
+      "name": "6. PUT Vi Phạm Duality Boundary (NOUPDATE Quán Ăn)",
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Accept", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"_id\": 9999,\n  \"quanAn\": {\n    \"userid\": 1,\n    \"tenquanan\": \"Ten Bi Sua Trai Phep\"\n  }\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/dv_don_hang/9999",
+          "host": ["{{baseUrl}}"],
+          "path": ["dv_don_hang", "9999"]
+        }
+      }
+    }
+  ]
+}
