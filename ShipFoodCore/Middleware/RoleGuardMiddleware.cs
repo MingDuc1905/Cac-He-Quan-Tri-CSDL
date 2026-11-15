@@ -54,9 +54,6 @@ public class RoleGuardMiddleware
         "/Home/CompleteGoogleRegistration",
         "/Home/Logout",
         "/Home/Signup",
-        "/Home/DbDebug",
-        "/Home/FixPasswords",
-        "/Home/SeedDb",
         "/home/menusearch",   // search autocomplete JSON API
         "/nhantin",  // SignalR hub
     };
@@ -114,6 +111,10 @@ public class RoleGuardMiddleware
         { "/admin", "Admin" },
         { "/restaurant", "Quán ăn" },
         { "/shipper", "Shipper" },
+        { "/home/seeddb", "Admin" },
+        { "/home/dbdebug", "Admin" },
+        { "/home/cleanuporders", "Admin" },
+        { "/home/debugdetail", "Admin" },
     };
 
     // ════════════════════════════════════════════════════════════
@@ -128,6 +129,13 @@ public class RoleGuardMiddleware
     /// </summary>
     private static bool IsCustomerRoute(string path)
     {
+        // Các route quản trị / debug nhạy cảm dưới /home/ thuộc quyền Admin, không phải Customer route
+        if (path.StartsWith("/home/seeddb", StringComparison.OrdinalIgnoreCase) ||
+            path.StartsWith("/home/dbdebug", StringComparison.OrdinalIgnoreCase) ||
+            path.StartsWith("/home/cleanuporders", StringComparison.OrdinalIgnoreCase) ||
+            path.StartsWith("/home/debugdetail", StringComparison.OrdinalIgnoreCase))
+            return false;
+
         if (path == "/" || path == "/home" || path == "/cart" || path == "/chatbot" || path == "/payment")
             return true;
 

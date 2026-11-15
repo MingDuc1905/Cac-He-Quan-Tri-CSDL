@@ -349,13 +349,37 @@ public class HomeController : BaseController
         {
             var userFind = users[0];
 
-            // === Kiểm tra mật khẩu plain-text ===
-            bool passwordMatched = userFind.pwd == pwd;
+            // === Kiểm tra mật khẩu BCrypt (hỗ trợ nâng cấp từ legacy plain-text) ===
+            bool passwordMatched = false;
+            bool needsRehash = false;
+
+            if (userFind.pwd.StartsWith("$2a$") || userFind.pwd.StartsWith("$2b$") || userFind.pwd.StartsWith("$2y$"))
+            {
+                passwordMatched = BCrypt.Net.BCrypt.Verify(pwd, userFind.pwd);
+            }
+            else
+            {
+                passwordMatched = (userFind.pwd == pwd);
+                if (passwordMatched)
+                {
+                    needsRehash = true;
+                }
+            }
 
             if (!passwordMatched)
             {
                 ViewBag.LoginFail = "Mật khẩu không đúng. Vui lòng kiểm tra lại.";
                 return View();
+            }
+
+            if (needsRehash)
+            {
+                try
+                {
+                    userFind.pwd = BCrypt.Net.BCrypt.HashPassword(pwd);
+                    db.SaveChanges();
+                }
+                catch { /* Bỏ qua nếu lỗi lưu nâng cấp mật khẩu */ }
             }
 
             if (userFind.trangthai == 2)
@@ -1085,6 +1109,9 @@ public class HomeController : BaseController
 
         try
         {
+            // Băm mật khẩu bằng BCrypt trước khi lưu vào DB
+            user.pwd = BCrypt.Net.BCrypt.HashPassword(user.pwd);
+
             // ponytail: dung == thay .Equals() de tranh NullReferenceException
             if (user.loaitaikhoan == "Khách hàng")
             {
@@ -1256,13 +1283,23 @@ public class HomeController : BaseController
                 TempData["ProfileError"] = "Xác nhận mật khẩu không khớp.";
                 return RedirectToAction("Profile");
             }
-            // === Kiểm tra mật khẩu cũ plain-text ===
-            if (dbUser.pwd != oldPwd)
+            // === Kiểm tra mật khẩu cũ (hỗ trợ cả BCrypt và plain-text cũ) ===
+            bool oldMatch = false;
+            if (dbUser.pwd.StartsWith("$2a$") || dbUser.pwd.StartsWith("$2b$") || dbUser.pwd.StartsWith("$2y$"))
+            {
+                oldMatch = BCrypt.Net.BCrypt.Verify(oldPwd, dbUser.pwd);
+            }
+            else
+            {
+                oldMatch = (dbUser.pwd == oldPwd);
+            }
+
+            if (!oldMatch)
             {
                 TempData["ProfileError"] = "Mật khẩu hiện tại không đúng.";
                 return RedirectToAction("Profile");
             }
-            dbUser.pwd = newPwd;
+            dbUser.pwd = BCrypt.Net.BCrypt.HashPassword(newPwd);
         }
 
         db.SaveChanges();
@@ -1591,11 +1628,14 @@ public class HomeController : BaseController
 
     /// <summary>
     /// Dọn dẹp đơn hàng rác (0 chi tiết) do seed bị chạy nhiều lần
-    /// URL: GET /Home/CleanupOrders
+    /// URL: GET /Home/CleanupOrders (Chỉ Admin)
     /// </summary>
     [HttpGet]
     public JsonResult CleanupOrders()
     {
+        var roleCheck = CheckRoleJson("Admin");
+        if (roleCheck != null) return roleCheck;
+
         try
         {
             // ponytail: xoá tbTinNhan trước (FK constraint) rồi mới xoá tbDonHang
@@ -1633,11 +1673,17 @@ public class HomeController : BaseController
 
     /// <summary>
     /// Debug: thử render DetailRestaurant view và báo lỗi chi tiết
-    /// URL: GET /Home/DebugDetail/7
+    /// URL: GET /Home/DebugDetail/7 (Chỉ Admin)
     /// </summary>
     [HttpGet]
     public async Task<ActionResult> DebugDetail(int id)
     {
+        var user = GetCurrentUser();
+        if (user == null || user.loaitaikhoan != "Admin")
+        {
+            return Forbid();
+        }
+
         try
         {
             var quanAn = db.tbQuanAn.Include(q => q.tbUser).Include(q => q.tbMonAns).ThenInclude(m => m.tbDanhMuc)
@@ -1664,11 +1710,14 @@ public class HomeController : BaseController
 
     /// <summary>
     /// Debug: kiểm tra database — đếm số dòng từng bảng
-    /// URL: GET /Home/DbDebug
+    /// URL: GET /Home/DbDebug (Chỉ Admin)
     /// </summary>
     [HttpGet]
     public JsonResult DbDebug()
     {
+        var roleCheck = CheckRoleJson("Admin");
+        if (roleCheck != null) return roleCheck;
+
         var debugInfo = new Dictionary<string, object>
         {
             ["tbUser"] = db.tbUser.Count(),
@@ -1750,10 +1799,16 @@ VALUES ('test_debug', 'test123', 'Khách hàng', '0999999999', 0, 'test@debug.co
     /// <summary>
     /// ALTER các cột hinhanh bị giới hạn độ dài (fix cho DB cũ đã tạo với VARCHAR(50))
     /// Sau đó seed database từ seed.sql.
-    /// Gọi GET /Home/SeedDb từ browser.
+    /// Gọi GET /Home/SeedDb từ browser (Chỉ Admin).
     /// </summary>
     public IActionResult SeedDb()
     {
+        var user = GetCurrentUser();
+        if (user == null || user.loaitaikhoan != "Admin")
+        {
+            return Forbid();
+        }
+
         try
         {
             var logger = HttpContext.RequestServices.GetRequiredService<ILogger<HomeController>>();

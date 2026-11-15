@@ -442,6 +442,8 @@ public class AdminController : BaseController
         {
             user.trangthai = 1;
             user.vitien = 0;
+            if (!string.IsNullOrEmpty(user.pwd))
+                user.pwd = user.pwd.StartsWith("$2") ? user.pwd : BCrypt.Net.BCrypt.HashPassword(user.pwd);
             db.tbUser.Add(user);
             db.SaveChanges();
 
@@ -495,8 +497,10 @@ public class AdminController : BaseController
             var userOld = db.tbUser.Find(user.userid);
             if (userOld != null)
             {
-                // ponytail: plain-text password
-                userOld.pwd = user.pwd;
+                if (!string.IsNullOrEmpty(user.pwd) && user.pwd != userOld.pwd)
+                {
+                    userOld.pwd = user.pwd.StartsWith("$2") ? user.pwd : BCrypt.Net.BCrypt.HashPassword(user.pwd);
+                }
                 userOld.sdt = user.sdt;
                 userOld.email = user.email;
             }

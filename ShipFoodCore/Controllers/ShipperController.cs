@@ -235,10 +235,9 @@ public class ShipperController : BaseController
         {
             existingUser.sdt = user.sdt;
             // Chỉ cập nhật password nếu có thay đổi (không rỗng)
-            // ponytail: plain-text password
             if (!string.IsNullOrEmpty(user.pwd))
             {
-                existingUser.pwd = user.pwd;
+                existingUser.pwd = user.pwd.StartsWith("$2") ? user.pwd : BCrypt.Net.BCrypt.HashPassword(user.pwd);
             }
             db.SaveChanges();
         }

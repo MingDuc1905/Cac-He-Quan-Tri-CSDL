@@ -765,10 +765,9 @@ public class RestaurantController : BaseController
             quanAnOld.tenquanan = quanAn.tenquanan;
             if (quanAn.hinhanh != null) quanAnOld.hinhanh = quanAn.hinhanh;
             quanAnOld.diachi = quanAn.diachi;
-            // ponytail: plain-text password
             if (!string.IsNullOrEmpty(pwd))
             {
-                quanAnOld.tbUser.pwd = pwd;
+                quanAnOld.tbUser.pwd = pwd.StartsWith("$2") ? pwd : BCrypt.Net.BCrypt.HashPassword(pwd);
             }
             db.SaveChanges();
         }

@@ -88,6 +88,20 @@ e2e-tests/test-results*.json
 e2e-tests/test-run-*.txt
 
 # ============
+# Excluded Folders & Documents (DB, Doc, Plan, etc.)
+# ============
+/DB/
+/db/
+/doc/
+/DOC/
+/plan/
+/PLAN/
+/old/
+/screenshots/
+*.docx
+*.pdf
+
+# ============
 # OS
 # ============
 .DS_Store
@@ -97,3 +111,4 @@ Thumbs.db
 # Windows reserved device names (cannot be indexed)
 [Nn][Uu][Ll]
 nul
+

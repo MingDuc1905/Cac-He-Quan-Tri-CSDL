@@ -37,8 +37,9 @@ public class EDeliveryController : BaseController
 {
     private readonly IHubContext<Chats> _hubContext;
     private readonly EDeliveryService _eDelivery;
-    // ponytail: QR_HASH_SECRET tu env var, fallback secure default
-    private static string QR_HASH_SECRET => Environment.GetEnvironmentVariable("QR_HASH_SECRET") ?? "FastShip2024!EDelivery@Secure";
+    // Không dùng secret tĩnh hardcode đã lộ — fallback chuỗi ngẫu nhiên an toàn per runtime nếu chưa cấu hình env var
+    private static readonly string _fallbackSecret = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
+    private static string QR_HASH_SECRET => Environment.GetEnvironmentVariable("QR_HASH_SECRET") ?? _fallbackSecret;
 
     public EDeliveryController(
         dbFoodyEntities context,
@@ -61,6 +62,22 @@ public class EDeliveryController : BaseController
     {
         try
         {
+            var user = GetCurrentUser();
+            if (user == null)
+                return Unauthorized();
+
+            var donHang = db.tbDonHang.FirstOrDefault(d => d.madh == orderId);
+            if (donHang == null)
+                return NotFound();
+
+            // Chỉ cho phép Shipper được gán đơn này, Quán ăn nhận đơn, hoặc Admin
+            bool isAllowed = (user.loaitaikhoan == "Admin")
+                || (user.loaitaikhoan == "Shipper" && donHang.mashipper == user.userid)
+                || (user.loaitaikhoan == "Quán ăn" && donHang.maquan == user.userid);
+
+            if (!isAllowed)
+                return Forbid();
+
             var token = GenerateSecureToken(orderId);
             var baseUrl = $"{Request.Scheme}://{Request.Host}";
             var qrContent = $"{baseUrl}/edelivery/scan/{token}";
@@ -90,6 +107,12 @@ public class EDeliveryController : BaseController
     // → FILE: ValidateToken (HMAC SHA256 + expire 24h) — chặn QR giả/hết hạn
     public async Task<IActionResult> ScanQR(string token)
     {
+        var user = GetCurrentUser();
+        if (user == null)
+        {
+            return RedirectToAction("Login", "Home");
+        }
+
         var orderId = ValidateToken(token);
         if (orderId == null)
         {
@@ -105,6 +128,17 @@ public class EDeliveryController : BaseController
         if (donHang == null)
         {
             ViewBag.Error = "Đơn hàng không tồn tại.";
+            return View("ScanResult");
+        }
+
+        // Kiểm tra quyền: Phải là Quán ăn của đơn, Shipper của đơn, hoặc Admin
+        bool isAuthorized = (user.loaitaikhoan == "Admin")
+            || (user.loaitaikhoan == "Quán ăn" && donHang.maquan == user.userid)
+            || (user.loaitaikhoan == "Shipper" && donHang.mashipper == user.userid);
+
+        if (!isAuthorized)
+        {
+            ViewBag.Error = "Bạn không có quyền truy cập thông tin vận đơn này.";
             return View("ScanResult");
         }
 
@@ -126,12 +160,16 @@ public class EDeliveryController : BaseController
     {
         try
         {
+            var user = GetCurrentUser();
+            if (user == null)
+                return Json(new { success = false, message = "Vui lòng đăng nhập trước khi quét xác nhận." });
+
             if (string.IsNullOrEmpty(request?.Token))
                 return Json(new { success = false, message = "Thiếu mã xác thực." });
 
             var orderIdNullable = ValidateToken(request.Token);
             if (orderIdNullable == null)
-                return Json(new { success = false, message = "Mã QR không hợp lệ." });
+                return Json(new { success = false, message = "Mã QR không hợp lệ hoặc đã hết hạn." });
 
             var orderId = orderIdNullable.Value;
 
@@ -143,6 +181,14 @@ public class EDeliveryController : BaseController
 
             if (donHang == null)
                 return Json(new { success = false, message = "Đơn hàng không tồn tại." });
+
+            // Kiểm tra phân quyền: Quán ăn của đơn, Shipper của đơn, hoặc Admin
+            bool isAuthorized = (user.loaitaikhoan == "Admin")
+                || (user.loaitaikhoan == "Quán ăn" && donHang.maquan == user.userid)
+                || (user.loaitaikhoan == "Shipper" && donHang.mashipper == user.userid);
+
+            if (!isAuthorized)
+                return Json(new { success = false, message = "Bạn không có quyền xác nhận đơn hàng này." });
 
             if (donHang.trangthai != "Đã xác nhận" && donHang.trangthai != "Chờ shipper lấy hàng")
                 return Json(new { success = false, message = $"Đơn hàng đang ở trạng thái '{donHang.trangthai}', không thể quét." });
